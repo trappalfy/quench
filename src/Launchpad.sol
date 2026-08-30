@@ -271,7 +271,7 @@ contract Launchpad is ILaunchpad, IUnlockCallback {
             );
             if (liquidity == 0) revert NoLiquidity();
 
-            (BalanceDelta delta,) = poolManager.modifyLiquidity(
+            (BalanceDelta addDelta,) = poolManager.modifyLiquidity(
                 job.key,
                 IPoolManager.ModifyLiquidityParams({
                     tickLower: TickMath.minUsableTick(TICK_SPACING),
@@ -282,8 +282,8 @@ contract Launchpad is ILaunchpad, IUnlockCallback {
                 ""
             );
 
-            _resolve(job.key.currency0, delta.amount0());
-            _resolve(job.key.currency1, delta.amount1());
+            _resolve(job.key.currency0, addDelta.amount0());
+            _resolve(job.key.currency1, addDelta.amount1());
             return "";
         }
 
