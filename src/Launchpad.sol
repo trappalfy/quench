@@ -19,6 +19,7 @@ import {BlockConfig} from "./lib/BlockConfig.sol";
 import {LiquidityAmounts} from "./lib/LiquidityAmounts.sol";
 import {LaunchToken} from "./LaunchToken.sol";
 import {BlockHook} from "./hook/BlockHook.sol";
+import {HookDeployer} from "./hook/HookDeployer.sol";
 import {BondingCurve} from "./BondingCurve.sol";
 import {ILaunchpad, LaunchRecord, Blueprint, InstantParams, CurveParams} from "./interfaces/ILaunchpad.sol";
 
@@ -35,6 +36,7 @@ contract Launchpad is ILaunchpad, IUnlockCallback {
 
     error HookAlreadyDeployed();
     error HookNotDeployed();
+    error HookMiswired();
     error PoolTooLarge();
     error CreatorFeeTooHigh();
     error RoyaltyTooHigh();
@@ -76,6 +78,7 @@ contract Launchpad is ILaunchpad, IUnlockCallback {
     address public immutable protocolFeeRecipient;
     uint256 public immutable maxPoolEthWei;
     address public immutable curveImplementation;
+    HookDeployer public immutable hookDeployer;
 
     address public hook;
 
@@ -88,12 +91,14 @@ contract Launchpad is ILaunchpad, IUnlockCallback {
         IPoolManager _poolManager,
         address _router,
         address _protocolFeeRecipient,
-        uint256 _maxPoolEthWei
+        uint256 _maxPoolEthWei,
+        HookDeployer _hookDeployer
     ) {
         poolManager = _poolManager;
         router = _router;
         protocolFeeRecipient = _protocolFeeRecipient;
         maxPoolEthWei = _maxPoolEthWei;
+        hookDeployer = _hookDeployer;
 
         // The implementation records this contract as its launchpad; every clone
         // reads that from the implementation's code.
@@ -104,11 +109,19 @@ contract Launchpad is ILaunchpad, IUnlockCallback {
     }
 
     /// @notice Deploys the hook at a mined salt. Callable once, by anyone: a wrong
-    /// salt is rejected by the hook's constructor, so there is nothing to trust.
+    /// salt is rejected by the hook's own constructor, and the hook can only come
+    /// from this launchpad's immutable deployer, so there is nothing to trust.
     function deployHook(bytes32 salt) external returns (address) {
         if (hook != address(0)) revert HookAlreadyDeployed();
-        BlockHook deployed = new BlockHook{salt: salt}(poolManager, address(this), router);
-        hook = address(deployed);
+
+        address deployed = hookDeployer.deploy(salt, address(this), router);
+        if (
+            BlockHook(payable(deployed)).launchpad() != address(this)
+                || BlockHook(payable(deployed)).router() != router
+                || address(BlockHook(payable(deployed)).poolManager()) != address(poolManager)
+        ) revert HookMiswired();
+
+        hook = deployed;
         return hook;
     }
 

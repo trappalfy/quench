@@ -15,6 +15,7 @@ import {BlockConfig} from "../../src/lib/BlockConfig.sol";
 import {BlockHook} from "../../src/hook/BlockHook.sol";
 import {BoundedRouter} from "../../src/BoundedRouter.sol";
 import {Launchpad} from "../../src/Launchpad.sol";
+import {HookDeployer} from "../../src/hook/HookDeployer.sol";
 import {BondingCurve} from "../../src/BondingCurve.sol";
 import {LaunchToken} from "../../src/LaunchToken.sol";
 import {InstantParams, CurveParams} from "../../src/interfaces/ILaunchpad.sol";
@@ -33,6 +34,7 @@ abstract contract SystemFixtures is Test {
     BoundedRouter internal router;
     Launchpad internal launchpad;
     BlockHook internal hook;
+    HookDeployer internal hookDeployer;
     address internal protocolFeeRecipient = makeAddr("protocolFees");
 
     address internal creator = makeAddr("creator");
@@ -43,14 +45,15 @@ abstract contract SystemFixtures is Test {
     function deploySystem() internal {
         manager = new PoolManager(address(this));
         router = new BoundedRouter(IPoolManager(address(manager)));
+        hookDeployer = new HookDeployer(IPoolManager(address(manager)));
         launchpad = new Launchpad(
-            IPoolManager(address(manager)), address(router), protocolFeeRecipient, MAX_POOL_ETH
+            IPoolManager(address(manager)), address(router), protocolFeeRecipient, MAX_POOL_ETH, hookDeployer
         );
 
-        // The launchpad is the deployer, so the salt is mined against its address.
+        // The HookDeployer is the CREATE2 deployer, so the salt is mined against it.
         bytes memory args = abi.encode(IPoolManager(address(manager)), address(launchpad), address(router));
         (address expected, bytes32 salt) =
-            HookMiner.find(address(launchpad), HOOK_FLAGS, type(BlockHook).creationCode, args);
+            HookMiner.find(address(hookDeployer), HOOK_FLAGS, type(BlockHook).creationCode, args);
 
         address deployed = launchpad.deployHook(salt);
         require(deployed == expected, "system: hook address mismatch");

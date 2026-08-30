@@ -13,6 +13,7 @@ import {BlockConfig} from "../../src/lib/BlockConfig.sol";
 import {BlockHook} from "../../src/hook/BlockHook.sol";
 import {BoundedRouter} from "../../src/BoundedRouter.sol";
 import {Launchpad} from "../../src/Launchpad.sol";
+import {HookDeployer} from "../../src/hook/HookDeployer.sol";
 import {BondingCurve} from "../../src/BondingCurve.sol";
 import {LaunchToken} from "../../src/LaunchToken.sol";
 import {InstantParams, CurveParams} from "../../src/interfaces/ILaunchpad.sol";
@@ -56,11 +57,12 @@ contract ForkLaunchTest is Test {
 
         manager = IPoolManager(POOL_MANAGER);
         router = new BoundedRouter(manager);
-        launchpad = new Launchpad(manager, address(router), protocolFees, MAX_POOL_ETH);
+        HookDeployer deployer = new HookDeployer(manager);
+        launchpad = new Launchpad(manager, address(router), protocolFees, MAX_POOL_ETH, deployer);
 
         bytes memory args = abi.encode(manager, address(launchpad), address(router));
         (address expected, bytes32 salt) =
-            HookMiner.find(address(launchpad), 0x28CC, type(BlockHook).creationCode, args);
+            HookMiner.find(address(deployer), 0x28CC, type(BlockHook).creationCode, args);
         address deployed = launchpad.deployHook(salt);
         assertEq(deployed, expected, "mined salt did not produce the expected address");
         hook = BlockHook(payable(deployed));
