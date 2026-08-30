@@ -1,0 +1,14 @@
+{
+  "name": "@launchpad/simulator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript mirror of BlockMath.sol, checked against it by a differential test",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

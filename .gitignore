@@ -7,3 +7,5 @@ broadcast/
 !.env.example
 .next/
 deployments/*.json
+ts/dist/
+ts/package-lock.json
