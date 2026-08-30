@@ -6,6 +6,10 @@ import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {LPFeeLibrary} from "@uniswap/v4-core/src/libraries/LPFeeLibrary.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
+import {BeforeSwapDelta, BeforeSwapDeltaLibrary, toBeforeSwapDelta} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
+import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
+import {BlockMath} from "../lib/BlockMath.sol";
 import {BaseHook} from "./BaseHook.sol";
 import {BlockConfig, PoolState} from "../lib/BlockConfig.sol";
 import {IBlockHook} from "../interfaces/IBlockHook.sol";
@@ -20,6 +24,7 @@ import {PotVault} from "../PotVault.sol";
 contract BlockHook is BaseHook, IBlockHook {
     using PoolIdLibrary for PoolKey;
     using LPFeeLibrary for uint24;
+    using StateLibrary for IPoolManager;
 
     error NotLaunchpad();
     error NoStagedConfig();
@@ -122,6 +127,38 @@ contract BlockHook is BaseHook, IBlockHook {
 
         emit PoolConfigured(id, cfg);
         return BaseHook.beforeInitialize.selector;
+    }
+
+    function _beforeSwap(
+        address,
+        PoolKey calldata key,
+        IPoolManager.SwapParams calldata params,
+        bytes calldata
+    ) internal override returns (bytes4, BeforeSwapDelta, uint24) {
+        PoolId id = key.toId();
+        BlockConfig memory cfg = _configOf[id];
+
+        uint256 amountIn = params.amountSpecified < 0 ? uint256(-params.amountSpecified) : 0;
+        uint256 reserve = _ethReserve(id);
+        uint24 fee = BlockMath.surgeFee(amountIn, reserve, cfg.baseFeePips, cfg.maxFeePips, cfg.surgeSens);
+
+        return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, fee | LPFeeLibrary.OVERRIDE_FEE_FLAG);
+    }
+
+    function _afterSwap(
+        address,
+        PoolKey calldata,
+        IPoolManager.SwapParams calldata,
+        BalanceDelta,
+        bytes calldata
+    ) internal override returns (bytes4, int128) {
+        return (BaseHook.afterSwap.selector, 0);
+    }
+
+    /// @dev The one reserve every block measures itself against.
+    function _ethReserve(PoolId id) internal view returns (uint256) {
+        (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(id);
+        return BlockMath.inRangeEthReserve(poolManager.getLiquidity(id), sqrtPriceX96);
     }
 
     /// @dev Liquidity comes from the launchpad and nowhere else: it is the launchpad

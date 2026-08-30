@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {PoolManager} from "@uniswap/v4-core/src/PoolManager.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
@@ -18,6 +19,7 @@ import {BlockConfig} from "../../src/lib/BlockConfig.sol";
 import {BlockMath} from "../../src/lib/BlockMath.sol";
 import {BlockHook} from "../../src/hook/BlockHook.sol";
 import {LaunchToken} from "../../src/LaunchToken.sol";
+import {BoundedRouter} from "../../src/BoundedRouter.sol";
 
 /// @notice Stand-in for the real Launchpad until Task 12 builds it. It exists
 /// because the hook identifies the launchpad by `msg.sender`, and `vm.prank`
@@ -102,6 +104,7 @@ abstract contract Fixtures is Test {
     PoolManager internal manager;
     BlockHook internal hook;
     TestLaunchpad internal launchpadContract;
+    BoundedRouter internal boundedRouter;
     LaunchToken internal token;
     LaunchToken internal token2;
     address internal launchpad;
@@ -111,7 +114,11 @@ abstract contract Fixtures is Test {
         manager = new PoolManager(address(this));
         launchpadContract = new TestLaunchpad(IPoolManager(address(manager)));
         launchpad = address(launchpadContract);
-        router = makeAddr("router");
+
+        // The router address goes into the hook's constructor args, which are
+        // hashed when mining the salt — so it must exist before the hook.
+        boundedRouter = new BoundedRouter(IPoolManager(address(manager)));
+        router = address(boundedRouter);
 
         token = new LaunchToken("Test", "TEST", address(this));
         token2 = new LaunchToken("Test2", "TEST2", address(this));
@@ -159,6 +166,52 @@ abstract contract Fixtures is Test {
         LaunchToken t = LaunchToken(Currency.unwrap(key.currency1));
         t.transfer(address(launchpadContract), 500_000_000e18);
         launchpadContract.addLiquidity(key, liquidityDelta, TICK_SPACING);
+    }
+
+    // --- trading helpers, all routed through the canonical BoundedRouter ---
+
+    function buy(PoolKey memory key, uint256 amountIn, address buyer) internal returns (uint256 out) {
+        vm.deal(buyer, buyer.balance + amountIn);
+        vm.prank(buyer);
+        out = boundedRouter.buy{value: amountIn}(key, 0, buyer, block.timestamp);
+    }
+
+    function buyExactOutput(PoolKey memory key, uint256 amountOut, address buyer)
+        internal
+        returns (uint256 ethSpent)
+    {
+        vm.deal(buyer, buyer.balance + 1_000 ether);
+        vm.prank(buyer);
+        ethSpent = boundedRouter.buyExactOutput{value: 1_000 ether}(key, amountOut, buyer, block.timestamp);
+    }
+
+    function sell(PoolKey memory key, uint256 amountIn, address seller) internal returns (uint256 ethOut) {
+        LaunchToken t = LaunchToken(Currency.unwrap(key.currency1));
+        if (t.balanceOf(seller) < amountIn) t.transfer(seller, amountIn - t.balanceOf(seller));
+        vm.startPrank(seller);
+        t.approve(address(boundedRouter), amountIn);
+        ethOut = boundedRouter.sell(key, amountIn, 0, seller, block.timestamp);
+        vm.stopPrank();
+    }
+
+    /// Reads the LP fee the PoolManager actually applied, from its Swap event.
+    function chargedFee(PoolKey memory key, uint256 amountIn, address buyer) internal returns (uint24) {
+        vm.recordLogs();
+        buy(key, amountIn, buyer);
+        return feeFromLastSwapEvent();
+    }
+
+    function feeFromLastSwapEvent() internal returns (uint24) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 sig = keccak256("Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)");
+        for (uint256 i = logs.length; i > 0; i--) {
+            if (logs[i - 1].topics[0] == sig) {
+                (,,,,, uint24 fee) =
+                    abi.decode(logs[i - 1].data, (int128, int128, uint160, uint128, int24, uint24));
+                return fee;
+            }
+        }
+        revert("no Swap event");
     }
 
     function ethReserveOf(PoolKey memory key) internal view returns (uint256) {
