@@ -39,6 +39,7 @@ contract BlockHook is BaseHook, IBlockHook {
     error BadMaxBuyBps();
     error BurnNeedsTrigger();
     error OnlyLaunchpadProvidesLiquidity();
+    error BuyExceedsGuardCap();
 
     event PoolConfigured(PoolId indexed id, BlockConfig cfg);
 
@@ -140,9 +141,55 @@ contract BlockHook is BaseHook, IBlockHook {
 
         uint256 amountIn = params.amountSpecified < 0 ? uint256(-params.amountSpecified) : 0;
         uint256 reserve = _ethReserve(id);
-        uint24 fee = BlockMath.surgeFee(amountIn, reserve, cfg.baseFeePips, cfg.maxFeePips, cfg.surgeSens);
 
-        return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, fee | LPFeeLibrary.OVERRIDE_FEE_FLAG);
+        // Slices and the guard apply to exact-input buys only. Sells and
+        // exact-output buys pay the LP fee and nothing else.
+        bool isExactInBuy = params.zeroForOne && params.amountSpecified < 0;
+
+        uint24 fee = _feeFor(cfg, id, amountIn, reserve, isExactInBuy);
+
+        // An empty pool cannot receive a donation, so it takes no slice either.
+        BeforeSwapDelta delta = (isExactInBuy && reserve > 0)
+            ? _takeEthSlices(key, cfg, amountIn)
+            : BeforeSwapDeltaLibrary.ZERO_DELTA;
+
+        return (BaseHook.beforeSwap.selector, delta, fee | LPFeeLibrary.OVERRIDE_FEE_FLAG);
+    }
+
+    /// @dev Block 2 plus the guard-window surcharge of block 1. Reverts the swap
+    /// outright when it breaks the anti-snipe cap.
+    function _feeFor(
+        BlockConfig memory cfg,
+        PoolId id,
+        uint256 amountIn,
+        uint256 reserve,
+        bool isExactInBuy
+    ) internal view returns (uint24 fee) {
+        fee = BlockMath.surgeFee(amountIn, reserve, cfg.baseFeePips, cfg.maxFeePips, cfg.surgeSens);
+        if (!isExactInBuy || cfg.guardBlocks == 0) return fee;
+
+        PoolState storage st = _stateOf[id];
+        if (block.number >= uint256(st.startBlock) + cfg.guardBlocks) return fee;
+
+        if (amountIn > BlockMath.maxBuy(reserve, cfg.maxBuyBps)) revert BuyExceedsGuardCap();
+        uint256 taxed = uint256(fee) + cfg.snipeTaxPips;
+        return uint24(taxed > LPFeeLibrary.MAX_LP_FEE ? LPFeeLibrary.MAX_LP_FEE : taxed);
+    }
+
+    /// @dev Blocks 4 and 5: the ETH taken out of the buyer's input, and where it
+    /// goes. Everything is settled here, in this call — the hook keeps nothing.
+    function _takeEthSlices(PoolKey calldata key, BlockConfig memory cfg, uint256 amountIn)
+        internal
+        returns (BeforeSwapDelta)
+    {
+        uint256 lpCut = BlockMath.bpsCut(amountIn, cfg.lpBps);
+        if (lpCut == 0) return BeforeSwapDeltaLibrary.ZERO_DELTA;
+
+        // The returned delta credits the hook with lpCut and donate() debits the
+        // same amount. They net to zero: the ETH never leaves the pool, it just
+        // moves into the LPs' fee growth.
+        poolManager.donate(key, lpCut, 0, "");
+        return toBeforeSwapDelta(int128(int256(lpCut)), 0);
     }
 
     function _afterSwap(
