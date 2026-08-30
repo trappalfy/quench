@@ -42,6 +42,10 @@ contract BlockHook is BaseHook, IBlockHook {
     error BuyExceedsGuardCap();
 
     event PoolConfigured(PoolId indexed id, BlockConfig cfg);
+    event PotPaid(PoolId indexed id, address indexed winner, uint256 amount, uint32 buyIndex);
+    event AutoBurned(PoolId indexed id, uint256 amount);
+
+    address internal constant DEAD = 0x000000000000000000000000000000000000dEaD;
 
     /// @dev An arbitrary transient slot, far from anything else in use.
     bytes32 internal constant STAGED_SLOT = 0x6b3a8f2f1a5f4ef1a3d0f4a7c9b2e8d5c4a1b6e3f0d7c2a9b8e5d4c1a0f7b6e3;
@@ -131,40 +135,53 @@ contract BlockHook is BaseHook, IBlockHook {
     }
 
     function _beforeSwap(
-        address,
+        address sender,
         PoolKey calldata key,
         IPoolManager.SwapParams calldata params,
-        bytes calldata
+        bytes calldata hookData
     ) internal override returns (bytes4, BeforeSwapDelta, uint24) {
-        PoolId id = key.toId();
-        BlockConfig memory cfg = _configOf[id];
+        // Resolve the buyer up front so that `sender` and `hookData` stop
+        // occupying stack slots for the rest of the work.
+        return _handleSwap(key, params, _recipientOf(sender, hookData));
+    }
 
-        uint256 amountIn = params.amountSpecified < 0 ? uint256(-params.amountSpecified) : 0;
-        uint256 reserve = _ethReserve(id);
+    function _handleSwap(PoolKey calldata key, IPoolManager.SwapParams calldata params, address buyer)
+        internal
+        returns (bytes4, BeforeSwapDelta, uint24)
+    {
+        PoolId id = key.toId();
 
         // Slices and the guard apply to exact-input buys only. Sells and
         // exact-output buys pay the LP fee and nothing else.
         bool isExactInBuy = params.zeroForOne && params.amountSpecified < 0;
+        uint256 amountIn = params.amountSpecified < 0 ? uint256(-params.amountSpecified) : 0;
+        uint256 reserve = _ethReserve(id);
 
-        uint24 fee = _feeFor(cfg, id, amountIn, reserve, isExactInBuy);
+        uint24 fee = _feeFor(id, amountIn, reserve, isExactInBuy) | LPFeeLibrary.OVERRIDE_FEE_FLAG;
 
         // An empty pool cannot receive a donation, so it takes no slice either.
-        BeforeSwapDelta delta = (isExactInBuy && reserve > 0)
-            ? _takeEthSlices(key, cfg, amountIn)
-            : BeforeSwapDeltaLibrary.ZERO_DELTA;
+        if (!isExactInBuy || reserve == 0) {
+            return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, fee);
+        }
 
-        return (BaseHook.beforeSwap.selector, delta, fee | LPFeeLibrary.OVERRIDE_FEE_FLAG);
+        return (BaseHook.beforeSwap.selector, _takeEthSlices(key, id, amountIn, buyer), fee);
+    }
+
+    /// @dev Only the canonical router can name a buyer. Every other path reaches
+    /// the pool with the buyer unknown, and an unknown buyer cannot win the pot.
+    function _recipientOf(address sender, bytes calldata hookData) internal view returns (address) {
+        if (sender != router || hookData.length != 32) return address(0);
+        return abi.decode(hookData, (address));
     }
 
     /// @dev Block 2 plus the guard-window surcharge of block 1. Reverts the swap
     /// outright when it breaks the anti-snipe cap.
-    function _feeFor(
-        BlockConfig memory cfg,
-        PoolId id,
-        uint256 amountIn,
-        uint256 reserve,
-        bool isExactInBuy
-    ) internal view returns (uint24 fee) {
+    function _feeFor(PoolId id, uint256 amountIn, uint256 reserve, bool isExactInBuy)
+        internal
+        view
+        returns (uint24 fee)
+    {
+        BlockConfig memory cfg = _configOf[id];
         fee = BlockMath.surgeFee(amountIn, reserve, cfg.baseFeePips, cfg.maxFeePips, cfg.surgeSens);
         if (!isExactInBuy || cfg.guardBlocks == 0) return fee;
 
@@ -178,28 +195,94 @@ contract BlockHook is BaseHook, IBlockHook {
 
     /// @dev Blocks 4 and 5: the ETH taken out of the buyer's input, and where it
     /// goes. Everything is settled here, in this call — the hook keeps nothing.
-    function _takeEthSlices(PoolKey calldata key, BlockConfig memory cfg, uint256 amountIn)
+    function _takeEthSlices(PoolKey calldata key, PoolId id, uint256 amountIn, address buyer)
         internal
         returns (BeforeSwapDelta)
     {
+        BlockConfig memory cfg = _configOf[id];
         uint256 lpCut = BlockMath.bpsCut(amountIn, cfg.lpBps);
-        if (lpCut == 0) return BeforeSwapDeltaLibrary.ZERO_DELTA;
+        uint256 potCut = BlockMath.bpsCut(amountIn, cfg.potBps);
 
-        // The returned delta credits the hook with lpCut and donate() debits the
-        // same amount. They net to zero: the ETH never leaves the pool, it just
-        // moves into the LPs' fee growth.
-        poolManager.donate(key, lpCut, 0, "");
-        return toBeforeSwapDelta(int128(int256(lpCut)), 0);
+        if (lpCut > 0) {
+            // The returned delta credits the hook with lpCut and donate() debits
+            // the same amount. They net to zero: the ETH never leaves the pool,
+            // it just moves into the LPs' fee growth.
+            poolManager.donate(key, lpCut, 0, "");
+        }
+
+        if (potCut > 0) {
+            // Pull the ETH against the credit the returned delta will give us and
+            // hand it straight to the vault. The hook holds it for two opcodes.
+            poolManager.take(key.currency0, address(this), potCut);
+            potVault.fund{value: potCut}(id);
+            _stateOf[id].potBalance += uint128(potCut);
+        }
+
+        _maybePayPot(id, cfg, amountIn, buyer);
+
+        uint256 total = lpCut + potCut;
+        return total == 0 ? BeforeSwapDeltaLibrary.ZERO_DELTA : toBeforeSwapDelta(int128(int256(total)), 0);
     }
 
+    /// @dev Block 5's counter and payout. The counter moves at most once per block,
+    /// which is the only thing stopping a sniper from firing N-1 dust buys and one
+    /// real buy in a single block to collect the pot.
+    function _maybePayPot(PoolId id, BlockConfig memory cfg, uint256 amountIn, address buyer) internal {
+        if (cfg.potEveryN < 2 || amountIn < cfg.potMinBuyWei) return;
+
+        PoolState storage st = _stateOf[id];
+        if (block.number <= st.lastCountedBlock) return;
+
+        st.potBuyCount += 1;
+        st.lastCountedBlock = uint64(block.number);
+
+        if (buyer == address(0) || st.potBuyCount % cfg.potEveryN != 0) return;
+
+        uint256 prize = st.potBalance;
+        if (prize == 0) return;
+
+        st.potBalance = 0;
+        potVault.pay(id, buyer, prize);
+
+        // pay() credits the pot back if the winner refused the transfer, so the
+        // hook's bookkeeping resyncs from the vault rather than assuming success.
+        uint128 remaining = uint128(potVault.balanceOf(id));
+        st.potBalance = remaining;
+        emit PotPaid(id, buyer, prize - remaining, st.potBuyCount);
+    }
+
+    /// @dev Block 3 - Auto Burn. The hook declares a slice of the token output as
+    /// its own, then immediately takes it to the dead address. The token never
+    /// rests on the hook's balance, and the pool's reserves are untouched: what
+    /// shrinks is only what the buyer receives.
     function _afterSwap(
         address,
-        PoolKey calldata,
-        IPoolManager.SwapParams calldata,
-        BalanceDelta,
+        PoolKey calldata key,
+        IPoolManager.SwapParams calldata params,
+        BalanceDelta delta,
         bytes calldata
     ) internal override returns (bytes4, int128) {
-        return (BaseHook.afterSwap.selector, 0);
+        // Exact-input buys only, matching every other slice in the system.
+        if (!params.zeroForOne || params.amountSpecified >= 0) {
+            return (BaseHook.afterSwap.selector, 0);
+        }
+
+        PoolId id = key.toId();
+        BlockConfig memory cfg = _configOf[id];
+        if (cfg.burnBps == 0 || uint256(-params.amountSpecified) < cfg.burnTriggerWei) {
+            return (BaseHook.afterSwap.selector, 0);
+        }
+
+        int128 tokenOut = delta.amount1();
+        if (tokenOut <= 0) return (BaseHook.afterSwap.selector, 0);
+
+        uint256 burnAmount = BlockMath.bpsCut(uint256(int256(tokenOut)), cfg.burnBps);
+        if (burnAmount == 0) return (BaseHook.afterSwap.selector, 0);
+
+        poolManager.take(key.currency1, DEAD, burnAmount);
+        emit AutoBurned(id, burnAmount);
+
+        return (BaseHook.afterSwap.selector, int128(int256(burnAmount)));
     }
 
     /// @dev The one reserve every block measures itself against.
