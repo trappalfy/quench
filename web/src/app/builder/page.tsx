@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { HookBuilder } from "@/components/builder/HookBuilder";
 import { serverClient } from "@/lib/client";
+import { fromQuery } from "@/lib/hookConfig";
 
 export const revalidate = 10;
 
@@ -10,10 +12,21 @@ export const metadata = {
     "Compose the five blocks, see what the stack costs a buyer, and check the config against the hook's own validation before spending gas.",
 };
 
-export default async function Builder() {
+export default async function Builder({
+  searchParams,
+}: {
+  searchParams: Promise<{ cfg?: string; from?: string }>;
+}) {
   // The head block is the only thing this page reads from the chain. Everything
   // below it is arithmetic that runs in the browser.
-  const head = await serverClient.getBlockNumber().catch(() => undefined);
+  const [head, params] = await Promise.all([
+    serverClient.getBlockNumber().catch(() => undefined),
+    searchParams,
+  ]);
+
+  // A config carried in from the registry. A malformed one opens the default
+  // rather than a config half-taken from a bad link.
+  const carried = fromQuery(params.cfg);
 
   return (
     <>
@@ -32,8 +45,19 @@ export default async function Builder() {
           Nothing is sent anywhere until you launch.
         </p>
 
+        {carried && (
+          <p className="mt-4 border-l-2 border-cyan px-3 py-2 text-dim">
+            Loaded from{" "}
+            <Link className="text-cyan" href="/hooks">
+              blueprint {params.from ?? "the registry"}
+            </Link>
+            . Changing anything here makes it your own config — it does not touch
+            the published one, which nobody can change.
+          </p>
+        )}
+
         <div className="mt-10">
-          <HookBuilder />
+          <HookBuilder initial={carried ?? undefined} />
         </div>
       </main>
     </>

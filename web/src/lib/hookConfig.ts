@@ -326,6 +326,64 @@ export function toSolidity(c: BlockConfig): string {
   ].join("\n");
 }
 
+/**
+ * The twelve values as a URL parameter, so a blueprint can be opened in the
+ * builder without a server round trip or a store.
+ *
+ * Parsing is strict: the wrong number of fields, a non-integer, or a negative
+ * one returns null and the builder opens on its default rather than on a
+ * config half-taken from a bad link.
+ */
+export function toQuery(c: BlockConfig): string {
+  return toTuple(c).slice(1, -1);
+}
+
+export function fromQuery(s: string | undefined): BlockConfig | null {
+  if (!s) return null;
+  const parts = s.split(",");
+  if (parts.length !== 12) return null;
+
+  const n = (i: number): number | null => {
+    if (!/^\d+$/.test(parts[i])) return null;
+    return Number(parts[i]);
+  };
+  const big = (i: number): bigint | null => {
+    if (!/^\d+$/.test(parts[i])) return null;
+    return BigInt(parts[i]);
+  };
+
+  const values = [
+    n(0),
+    n(1),
+    n(2),
+    n(3),
+    n(4),
+    n(5),
+    n(6),
+    big(7),
+    n(8),
+    n(9),
+    n(10),
+    big(11),
+  ];
+  if (values.some((v) => v === null)) return null;
+
+  return {
+    guardBlocks: values[0] as number,
+    maxBuyBps: values[1] as number,
+    snipeTaxPips: values[2] as number,
+    baseFeePips: values[3] as number,
+    maxFeePips: values[4] as number,
+    surgeSens: values[5] as number,
+    burnBps: values[6] as number,
+    burnTriggerWei: values[7] as bigint,
+    lpBps: values[8] as number,
+    potBps: values[9] as number,
+    potEveryN: values[10] as number,
+    potMinBuyWei: values[11] as bigint,
+  };
+}
+
 /// The same twelve values in the order the ABI encodes them, for `cast`.
 export function toTuple(c: BlockConfig): string {
   const parts = [

@@ -53,14 +53,21 @@ type Sim = {
  * The one thing it cannot do is publish. That is stated on the button rather
  * than hidden behind one that fails.
  */
-export function HookBuilder() {
-  const [cfg, setCfg] = useState<BlockConfig>(() => ({
-    ...EMPTY,
-    ...{ guardBlocks: 300, maxBuyBps: 500, snipeTaxPips: 10_000 },
-    maxFeePips: 50_000,
-    surgeSens: 10_000,
-    lpBps: 200,
-  }));
+/// Where the page opens when nothing was carried in: three blocks armed, so
+/// that the first thing on screen is a stack doing something rather than an
+/// empty form.
+export const STARTING_CONFIG: BlockConfig = {
+  ...EMPTY,
+  guardBlocks: 300,
+  maxBuyBps: 500,
+  snipeTaxPips: 10_000,
+  maxFeePips: 50_000,
+  surgeSens: 10_000,
+  lpBps: 200,
+};
+
+export function HookBuilder({ initial }: { initial?: BlockConfig }) {
+  const [cfg, setCfg] = useState<BlockConfig>(initial ?? STARTING_CONFIG);
 
   const [reserve, setReserve] = useState(10n * 10n ** 18n);
   const [amountIn, setAmountIn] = useState(10n ** 17n);
