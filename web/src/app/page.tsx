@@ -1,142 +1,243 @@
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Panel } from "@/components/Panel";
+import { LaunchCard } from "@/components/LaunchCard";
+import { LiveMetrics } from "@/components/LiveMetrics";
+import { HeroComposer } from "@/components/home/HeroComposer";
+import { BlockShowcase, type PotFacts } from "@/components/home/BlockShowcase";
+import { LaunchPath } from "@/components/home/LaunchPath";
+import { Verifiable } from "@/components/home/Verifiable";
 import { serverClient } from "@/lib/client";
-import { readLaunchCount } from "@/lib/reads/launches";
-import { LaunchpadAbi } from "@/lib/abi";
-import { ADDRESSES } from "@/lib/chain";
+import { readLaunch, readLaunchCount, readTokenPage } from "@/lib/reads/launches";
+import { readTotals } from "@/lib/reads/totals";
+import { buysUntilPot } from "@/lib/derive";
 
 export const revalidate = 30;
 
-const BLOCKS = [
-  {
-    name: "Anti-Snipe",
-    line: "For a set number of blocks after the pool opens, buys are capped against the in-range reserve and pay an extra fee.",
-  },
-  {
-    name: "Surge Fees",
-    line: "The LP fee climbs with how deep a single trade cuts into liquidity. No oracle, no keeper.",
-  },
-  {
-    name: "Auto Burn",
-    line: "A share of the tokens a buy produces goes to the dead address inside that same swap.",
-  },
-  {
-    name: "LP Rewards",
-    line: "A share of the ETH on every buy is donated to whoever holds in-range liquidity at that moment.",
-  },
-  {
-    name: "Nth-buy Pot",
-    line: "A share of each qualifying buy fills a pot, and every Nth qualifying buy takes it. The counter is public.",
-  },
-];
+/// Three, because three is what fits the grid without the row breaking, and a
+/// preview that needs scrolling is the page it is previewing.
+const PREVIEW = 3;
 
 export default async function Home() {
-  const [head, launches, blueprints] = await Promise.all([
-    serverClient.getBlockNumber().catch(() => undefined),
-    readLaunchCount(serverClient).catch(() => null),
-    serverClient
-      .readContract({
-        address: ADDRESSES.launchpad,
-        abi: LaunchpadAbi,
-        functionName: "blueprintCount",
-      })
-      .catch(() => null),
+  const [head, count, totals] = await Promise.all([
+    serverClient.getBlockNumber().catch(() => null),
+    readLaunchCount(serverClient).catch(() => 0n),
+    readTotals(serverClient).catch(() => ({
+      burnedByHooks: null,
+      potHeld: null,
+      potPaid: null,
+      lpDonated: null,
+    })),
   ]);
+
+  const tokens = await readTokenPage(serverClient, 0, PREVIEW, count).catch(() => []);
+  const launches = await Promise.all(
+    tokens.map((t) => readLaunch(serverClient, t, head ?? undefined)),
+  ).catch(() => []);
+
+  const lastLaunchBlock = launches.reduce<bigint | null>(
+    (acc, l) => (acc === null || l.record.launchBlock > acc ? l.record.launchBlock : acc),
+    null,
+  );
+
+  // The pot card shows a real counter or says it has none. Whichever launch is
+  // closest to paying out is the one worth watching.
+  const potFacts: PotFacts = launches
+    .filter((l) => l.record.cfg.potBps > 0 && l.record.cfg.potEveryN > 1)
+    .map((l) => ({
+      symbol: l.symbol,
+      balance: l.potBalance,
+      buysUntil: buysUntilPot(l),
+      everyN: l.record.cfg.potEveryN,
+      buysSoFar: l.hookState.potBuyCount,
+    }))
+    .sort((a, b) => (a.buysUntil ?? 99) - (b.buysUntil ?? 99))[0] ?? null;
 
   return (
     <>
-      <Nav head={head} />
+      <Nav head={head ?? undefined} />
 
       <main className="mx-auto max-w-7xl px-4">
-        <section className="py-20">
-          <p className="q-label">/ quench</p>
-          <h1 className="q-display mt-3 text-5xl sm:text-7xl lg:text-8xl">
-            Build the hook.
-            <br />
-            <span className="text-cyan">Then quench it.</span>
-          </h1>
-          <p className="q-lead mt-6 max-w-xl">
-            Stack up to five swap rules, launch a fixed-supply token behind them, and the
-            rules set at the moment the pool opens. There is no owner, no upgrade path and
-            no pause. Not even us.
-          </p>
+        {/* Two halves. The left states what the product is; the right lets you
+            do it. Neither is decoration for the other. */}
+        <section className="grid items-center gap-10 py-16 lg:grid-cols-2 lg:py-20">
+          <div>
+            <p className="q-label">/ quench</p>
+            <h1 className="q-display mt-3 text-5xl sm:text-7xl">
+              Build the hook.
+              <br />
+              <span className="text-cyan">Then quench it.</span>
+            </h1>
+            <p className="q-lead mt-6 max-w-xl">
+              Stack up to five swap rules, launch a fixed-supply token behind them, and
+              the rules set at the moment the pool opens. There is no owner, no upgrade
+              path and no pause. Not even us.
+            </p>
 
-          {/* Sized against the headline above them. At the old scale they read
-              as footnotes to it rather than as the way in. */}
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Link
-              href="/app"
-              className="border border-cyan px-7 py-4 text-base text-cyan transition-colors hover:bg-cyan hover:text-ground"
-            >
-              Explore markets
-            </Link>
-            <Link
-              href="/builder"
-              className="border border-line-bright px-7 py-4 text-base transition-colors hover:border-text"
-            >
-              Compose a hook
-            </Link>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/app"
+                className="border border-cyan px-7 py-4 text-base text-cyan transition-colors hover:bg-cyan hover:text-ground"
+              >
+                Explore markets
+              </Link>
+              <Link
+                href="/builder"
+                className="border border-line-bright px-7 py-4 text-base transition-colors hover:border-text"
+              >
+                Compose a hook
+              </Link>
+            </div>
           </div>
+
+          <HeroComposer />
         </section>
 
-        {/* Counts come from the registry itself. If the chain cannot be reached
-            they read as a dash — the page never invents a number to look busy. */}
-        <div className="grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-4">
-          <Cell label="launches" value={launches?.toString() ?? "—"} />
-          <Cell
-            label="blueprints"
-            value={blueprints !== null ? (Number(blueprints) - 1).toString() : "—"}
-            hint="Index 0 is a sentinel, not a blueprint."
-          />
-          <Cell label="rules per hook" value="5" />
-          <Cell label="chain" value="4663" hint="Robinhood Chain" />
-        </div>
+        <LiveMetrics
+          initialHead={head}
+          totals={totals}
+          lastLaunchBlock={lastLaunchBlock}
+        />
 
-        <section className="py-20">
+        <section className="py-16">
           <p className="q-label">/ the five blocks</p>
-          <h2 className="q-display mt-2 text-3xl sm:text-4xl">Rules that run inside the swap</h2>
-          <p className="q-lead mt-4 max-w-xl">
+          <h2 className="q-display mt-2 text-3xl sm:text-4xl">
+            Rules that run inside the swap
+          </h2>
+          <p className="q-lead mt-4 max-w-2xl">
             Each block is a branch in one immutable Uniswap v4 hook. A block is off when
             its parameters are zero, so what a token does is readable from the chain
-            before anyone trades it.
+            before anyone trades it. The numbers are names — Auto Burn is 03 and runs
+            last, because it works on an output the swap has not produced yet.
           </p>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {BLOCKS.map((b, i) => (
-              <Panel key={b.name} ticks>
-                <div className="flex items-baseline justify-between">
-                  <span className="q-display-sm text-base">{b.name}</span>
-                  <span className="q-label">{String(i + 1).padStart(2, "0")}</span>
-                </div>
-                <p className="mt-2 text-dim">{b.line}</p>
-              </Panel>
-            ))}
+          <div className="mt-8">
+            <BlockShowcase pot={potFacts} />
           </div>
         </section>
 
-        <section className="q-rule py-16">
-          <p className="q-label">/ what quench does not claim</p>
-          <div className="mt-4 max-w-3xl">
-            <p className="text-dim">
-              The contracts have not been audited. The pot is won on a public counter, not
-              a random one, and it will be raced. The hook charges its cuts on exact-input
-              buys only — sells and exact-output buys pay the LP fee and nothing else.
-              None of this is advice.
-            </p>
+        {launches.length > 0 && (
+          <section className="py-16">
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <div>
+                <p className="q-label">/ launched</p>
+                <h2 className="q-display mt-2 text-3xl sm:text-4xl">
+                  Live on chain 4663
+                </h2>
+              </div>
+              <Link
+                href="/app"
+                className="q-label border border-line px-3 py-2 hover:border-cyan hover:text-cyan"
+              >
+                all {count.toString()} →
+              </Link>
+            </div>
+
+            {/* Three columns only with three cards. Two cards in a three-column
+                grid leave a hole on the right, which is the void this redesign
+                exists to close. */}
+            <div
+              className={`mt-6 grid gap-4 sm:grid-cols-2 ${launches.length >= 3 ? "lg:grid-cols-3" : ""}`}
+            >
+              {launches.map((l) => (
+                <LaunchCard key={l.record.token} launch={l} head={head ?? 0n} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="py-16">
+          <p className="q-label">/ the path</p>
+          <h2 className="q-display mt-2 text-3xl sm:text-4xl">
+            From an argument to a rule
+          </h2>
+          <p className="q-lead mt-4 max-w-2xl">
+            Six stages, and only the first two are yours. After the transaction that
+            opens the pool, nothing you or we do changes what the hook charges.
+          </p>
+          <div className="mt-8">
+            <LaunchPath />
           </div>
+        </section>
+
+        <section className="py-16">
+          <p className="q-label">/ why robinhood chain</p>
+          <h2 className="q-display mt-2 text-3xl sm:text-4xl">
+            Rules this fine need cheap blocks
+          </h2>
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            <Panel bodyClassName="p-4">
+              <p className="q-display-sm text-base">Blocks are about 0.1s</p>
+              <p className="mt-2 text-dim">
+                An anti-snipe window measured in blocks is measured in seconds here, not
+                minutes. A 300-block guard is half a minute — long enough to matter to a
+                bot, short enough not to punish a person.
+              </p>
+            </Panel>
+            <Panel bodyClassName="p-4">
+              <p className="q-display-sm text-base">Gas is nearly free</p>
+              <p className="mt-2 text-dim">
+                The whole system — router, launchpad, hook, vault, curve — cost 0.00283
+                ETH to deploy. The five blocks add tens of thousands of gas to a buy,
+                which is a rounding error here and would be a design constraint on
+                mainnet.
+              </p>
+            </Panel>
+            <Panel bodyClassName="p-4">
+              <p className="q-display-sm text-base">Logs answer fast</p>
+              <p className="mt-2 text-dim">
+                A filtered query over a day of blocks comes back in under half a second,
+                with no range limit. That is why this site has no indexer and no
+                database: every figure on it is read from the chain when you ask for it.
+              </p>
+            </Panel>
+          </div>
+        </section>
+
+        <section className="py-16">
+          <p className="q-label">/ check it yourself</p>
+          <h2 className="q-display mt-2 text-3xl sm:text-4xl">
+            The claim and the way to test it
+          </h2>
+          <div className="mt-8">
+            <Verifiable />
+          </div>
+        </section>
+
+        {/* The most honest thing on the page, and for a while the quietest.
+            It gets a border and its own section now. */}
+        <section className="pb-20">
+          <Panel title="what quench does not claim" ticks bodyClassName="p-6">
+            <ul className="grid gap-4 text-dim sm:grid-cols-2">
+              <li>
+                <span className="text-text">The contracts have not been audited.</span>{" "}
+                They have tests, a differential check against this site&rsquo;s own
+                arithmetic, and no audit. Those are not the same thing.
+              </li>
+              <li>
+                <span className="text-text">The pot is raced.</span> It is won on a
+                public counter, not a random one. Anyone reading the chain can see which
+                buy takes it and bid to be that buy.
+              </li>
+              <li>
+                <span className="text-text">
+                  The hook charges on exact-input buys only.
+                </span>{" "}
+                Sells and exact-output buys pay the LP fee and nothing else — no burn,
+                no pot, no donation.
+              </li>
+              <li>
+                <span className="text-text">Immutable cuts both ways.</span> A config
+                that turns out to be wrong stays wrong. There is no one to appeal to,
+                which is the point and also the risk.
+              </li>
+            </ul>
+            <p className="mt-6 border-t border-line pt-4 text-faint">
+              None of this is financial advice, and none of it is a prediction.
+            </p>
+          </Panel>
         </section>
       </main>
     </>
   );
 }
-
-function Cell({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="bg-panel px-4 py-3" title={hint}>
-      <div className="q-label">{label}</div>
-      <div className="mt-1 text-xl">{value}</div>
-    </div>
-  );
-}
-

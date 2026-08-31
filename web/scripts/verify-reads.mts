@@ -17,6 +17,8 @@ import { readLaunchCount, readTokenPage, readLaunch, activeBlocks } from "../src
 import { inRangeEthReserve, priceWeiPerToken } from "../src/lib/reads/pool";
 import { curveTarget, fdvOf, priceOf } from "../src/lib/derive";
 import { readFeed } from "../src/lib/reads/events";
+import { readTotals } from "../src/lib/reads/totals";
+import { readBlueprintCount, readBlueprints } from "../src/lib/reads/blueprints";
 import { BondingCurveAbi } from "../src/lib/abi";
 
 const rpc = process.argv[2] ?? "http://127.0.0.1:8545";
@@ -146,6 +148,52 @@ check(
 check(
   feed.filter((e) => e.kind === "launch").length === feedLaunches.length,
   `every launch in the registry appears in the feed (${feedLaunches.length})`,
+);
+
+// The home page shows protocol-wide totals from unfiltered log queries rather
+// than by summing what it read per launch. Two ways of counting the same thing
+// is exactly where a figure quietly drifts, so they are checked against each
+// other here.
+const totals = await readTotals(client);
+console.log("\ntotals");
+console.log(`   burned by hooks  ${totals.burnedByHooks}`);
+console.log(`   held in pots     ${formatEther(totals.potHeld ?? 0n)} ETH`);
+console.log(`   paid out         ${formatEther(totals.potPaid ?? 0n)} ETH`);
+console.log(`   donated to LPs   ${formatEther(totals.lpDonated ?? 0n)} ETH`);
+
+const burnedPerLaunch = feedLaunches.reduce((sum, l) => sum + l.burnedByHook, 0n);
+const potPerLaunch = feedLaunches.reduce((sum, l) => sum + l.potBalance, 0n);
+
+check(
+  totals.burnedByHooks === burnedPerLaunch,
+  `protocol-wide burn matches the sum of the per-launch reads (${burnedPerLaunch})`,
+);
+check(
+  totals.potHeld === potPerLaunch,
+  `the vault's balance matches the sum of the per-pool pots (${potPerLaunch})`,
+);
+check(
+  (totals.lpDonated ?? 0n) > 0n,
+  "the LP Rewards block's donations are visible in the pool manager's Donate logs",
+);
+
+// Index 0 is a sentinel the constructor pushes. Listing it would show an
+// anonymous hook with every block off, which is why this asserts the count
+// rather than trusting the loop bounds.
+const blueprints = await readBlueprints(client);
+console.log(`\nblueprints: ${blueprints.length}`);
+for (const bp of blueprints) {
+  console.log(`   #${bp.id} by ${bp.author} · ${bp.royaltyBps} bps · ${bp.uses} uses`);
+}
+
+const rawCount = await readBlueprintCount(client);
+check(
+  blueprints.length === Number(rawCount) - 1,
+  `the sentinel at index 0 is not listed (${rawCount} entries, ${blueprints.length} blueprints)`,
+);
+check(
+  blueprints.every((bp) => bp.publishedAt !== null),
+  "every blueprint found its own BlueprintPublished log",
 );
 
 console.log("\nall read-layer checks passed");
