@@ -133,7 +133,9 @@ function Section({
           <p className="text-faint">{empty}</p>
         </Panel>
       ) : (
-        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+        // A lone card in a two-column grid leaves the right half of the section
+        // empty, which reads as a missing card rather than as a short list.
+        <div className={`mt-3 grid gap-4 ${items.length > 1 ? "sm:grid-cols-2" : ""}`}>
           {items.map((l) => (
             <LaunchCard key={l.record.token} launch={l} head={head} />
           ))}
