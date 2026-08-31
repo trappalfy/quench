@@ -16,6 +16,7 @@ import { robinhood } from "../src/lib/chain";
 import { readLaunchCount, readTokenPage, readLaunch, activeBlocks } from "../src/lib/reads/launches";
 import { inRangeEthReserve, priceWeiPerToken } from "../src/lib/reads/pool";
 import { curveTarget, fdvOf, priceOf } from "../src/lib/derive";
+import { readFeed } from "../src/lib/reads/events";
 import { BondingCurveAbi } from "../src/lib/abi";
 
 const rpc = process.argv[2] ?? "http://127.0.0.1:8545";
@@ -112,5 +113,39 @@ for (const token of tokens) {
     check(fdvOf(l)! > 0n, "FDV derives from that price and the fixed supply");
   }
 }
+
+// The seed makes exactly one router buy against the graduated pool and one
+// curve buy, and sells nothing. v4 emits the swapper's delta rather than the
+// pool's, so reading the sign backwards labels every buy a sell — which it
+// did, silently, until the feed was rendered and looked at.
+const feedHead = await client.getBlockNumber();
+const feedLaunches = await Promise.all(tokens.map((t) => readLaunch(client, t, feedHead)));
+const feed = await readFeed(client, feedLaunches, feedHead);
+
+console.log(`\nfeed: ${feed.length} events`);
+for (const e of feed) {
+  console.log(`   ${e.kind.padEnd(9)} ${e.venue.padEnd(9)} ${e.symbol}`);
+}
+
+check(feed.length > 0, "the feed found events in the window");
+check(
+  feed.some((e) => e.kind === "buy" && e.venue === "pool"),
+  "the seeded router buy reads as a buy, not a sell",
+);
+check(
+  feed.some((e) => e.kind === "buy" && e.venue === "curve"),
+  "the seeded curve buy reads as a buy",
+);
+check(feed.some((e) => e.kind === "burn"), "the auto burn shows up in the feed");
+check(
+  !feed.some((e) => e.kind === "sell"),
+  "nothing was sold in the seed, so nothing reads as a sell",
+);
+
+
+check(
+  feed.filter((e) => e.kind === "launch").length === feedLaunches.length,
+  `every launch in the registry appears in the feed (${feedLaunches.length})`,
+);
 
 console.log("\nall read-layer checks passed");

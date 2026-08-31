@@ -56,22 +56,24 @@ export default async function Home() {
             <br />
             <span className="text-cyan">Then quench it.</span>
           </h1>
-          <p className="mt-6 max-w-xl text-dim">
+          <p className="q-lead mt-6 max-w-xl">
             Stack up to five swap rules, launch a fixed-supply token behind them, and the
             rules set at the moment the pool opens. There is no owner, no upgrade path and
             no pause. Not even us.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          {/* Sized against the headline above them. At the old scale they read
+              as footnotes to it rather than as the way in. */}
+          <div className="mt-10 flex flex-wrap gap-3">
             <Link
               href="/app"
-              className="border border-cyan px-4 py-2 text-cyan hover:bg-cyan hover:text-ground"
+              className="border border-cyan px-7 py-4 text-base text-cyan transition-colors hover:bg-cyan hover:text-ground"
             >
               Explore markets
             </Link>
             <Link
               href="/builder"
-              className="border border-line-bright px-4 py-2 hover:border-text"
+              className="border border-line-bright px-7 py-4 text-base transition-colors hover:border-text"
             >
               Compose a hook
             </Link>
@@ -94,7 +96,7 @@ export default async function Home() {
         <section className="py-20">
           <p className="q-label">/ the five blocks</p>
           <h2 className="q-display mt-2 text-3xl sm:text-4xl">Rules that run inside the swap</h2>
-          <p className="mt-4 max-w-xl text-dim">
+          <p className="q-lead mt-4 max-w-xl">
             Each block is a branch in one immutable Uniswap v4 hook. A block is off when
             its parameters are zero, so what a token does is readable from the chain
             before anyone trades it.

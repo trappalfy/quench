@@ -1,5 +1,5 @@
 import { CONSTANTS } from "./chain";
-import type { Launch } from "./reads/launches";
+import { activeBlocks, type Launch } from "./reads/launches";
 import { priceWeiPerToken } from "./reads/pool";
 import type { Lifecycle } from "@/components/Tile";
 
@@ -61,4 +61,48 @@ export function buysUntilPot(l: Launch): number | null {
   const { potBps, potEveryN } = l.record.cfg;
   if (potBps === 0 || potEveryN === 0) return null;
   return potEveryN - (l.hookState.potBuyCount % potEveryN);
+}
+
+/// Three states, not two. A rule can be off, armed, or doing something at this
+/// very block — and the third is what makes a page worth watching. Amber is
+/// reserved for it; a rule that is merely armed stays cyan.
+export type Heat = "off" | "armed" | "hot";
+
+export type BlockHeat = {
+  antiSnipe: Heat;
+  surgeFees: Heat;
+  autoBurn: Heat;
+  lpRewards: Heat;
+  pot: Heat;
+};
+
+export function blockHeat(l: Launch, head: bigint): BlockHeat {
+  const cfg = l.record.cfg;
+  const on = activeBlocks(cfg);
+  const guard = guardRemaining(l, head);
+  const untilPot = buysUntilPot(l);
+
+  return {
+    // Hot while the guard window is still counting down.
+    antiSnipe: !on.antiSnipe ? "off" : guard !== null && guard > 0n ? "hot" : "armed",
+    // Hot when the pool is charging more than its base fee at this moment.
+    surgeFees: !on.surgeFees
+      ? "off"
+      : l.pool && l.pool.lpFee > cfg.baseFeePips
+        ? "hot"
+        : "armed",
+    autoBurn: on.autoBurn ? "armed" : "off",
+    lpRewards: on.lpRewards ? "armed" : "off",
+    // Hot on the buy that wins it.
+    pot: !on.pot ? "off" : untilPot === 1 ? "hot" : "armed",
+  };
+}
+
+/// 0 = molten, 1 = fully quenched. A curve cools as it sells; a graduated pool
+/// is cold. Drives the token mark's colour, so a wall of them reads as a
+/// temperature map rather than a list.
+export function temperatureOf(l: Launch): number {
+  if (l.record.graduated) return 1;
+  const progress = curveProgress(l);
+  return progress === null ? 0 : progress;
 }

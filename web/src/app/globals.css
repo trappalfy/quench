@@ -12,20 +12,25 @@
   and turn the page into a casino. Red is reserved for failure.
 */
 @theme {
-  --color-ground: #060607;
-  --color-panel: #0b0c0e;
+  --color-ground: #050506;
+  --color-panel: #0c0d0f;
   --color-raised: #101215;
 
-  --color-line: #1d2024;
+  --color-line: #1c1e22;
   --color-line-bright: #31363d;
 
-  --color-text: #e8eaec;
-  --color-dim: #8b939c;
-  --color-faint: #565d65;
+  --color-text: #f2f4f5;
+  /* Body copy, deliberately lighter than it was: at the old value long prose
+     sank into the ground and the page read as emptier than it is. */
+  --color-dim: #a7afb4;
+  --color-faint: #6b7378;
+  /* A rule the contract will not run. Not "quiet" — nearly absent, so that
+     which rules are armed is legible without reading a word. */
+  --color-off: #4a5157;
 
-  --color-amber: #ffa31a;
-  --color-amber-deep: #7a4a00;
-  --color-cyan: #35e0e8;
+  --color-amber: #ff7a1a;
+  --color-amber-deep: #7a3400;
+  --color-cyan: #22d3ee;
   --color-cyan-deep: #06555a;
 
   --color-fail: #ff5247;
@@ -57,6 +62,23 @@ html {
   background-size: 48px 48px;
   background-attachment: fixed;
   color: var(--color-text);
+}
+
+/* The grid is strongest under the first screen and gone by the fold below it.
+   A single flat texture over a long page reads as wallpaper; a fading one
+   gives the scroll somewhere to go. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--color-ground) 55%, transparent) 45%,
+    var(--color-ground) 100%
+  );
 }
 
 body {
@@ -158,6 +180,21 @@ body::after {
 /* A hairline rule that reads as a section break rather than a divider. */
 .q-rule {
   border-top: 1px solid var(--color-line);
+}
+
+/* The missing middle: section intros and lead paragraphs. Without it the page
+   steps straight from display to caption and looks thinner than it is. */
+.q-lead {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-dim);
+}
+
+/* Live values glow, and only live values. Applied to a figure that is changing
+   right now — an open guard window, a pot filling — never to decoration. */
+.q-hot {
+  color: var(--color-amber);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--color-amber) 45%, transparent);
 }
 
 /* body is a flex column so the footer can be pushed down. In a flex container,

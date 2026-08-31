@@ -6,9 +6,10 @@
  * address also means it cannot be spoofed: two tokens with the same mark would
  * have to be the same token.
  *
- * The colour is not decoration. Amber means the token is still on its curve;
- * cyan means it has graduated and its rules are set. A wall of these reads as
- * a state at a glance.
+ * The colour is not decoration — it is the token's temperature. A curve that
+ * has barely started is amber; one near its last tranche has visibly cooled; a
+ * graduated pool is cyan. A grid of these reads as a state of the market before
+ * a single label has been read.
  */
 export type Lifecycle = "molten" | "set";
 
@@ -17,17 +18,19 @@ const HALF = Math.ceil(SIZE / 2); // 4 columns, mirrored into 7
 
 export function Tile({
   address,
-  state,
+  temperature,
   px = 40,
   className = "",
 }: {
   address: string;
-  state: Lifecycle;
+  /** 0 = molten, 1 = fully quenched. */
+  temperature: number;
   px?: number;
   className?: string;
 }) {
   const bits = BigInt(address.toLowerCase());
-  const colour = state === "molten" ? "var(--color-amber)" : "var(--color-cyan)";
+  const t = Math.max(0, Math.min(1, temperature));
+  const colour = `color-mix(in oklab, var(--color-cyan) ${(t * 100).toFixed(1)}%, var(--color-amber))`;
 
   const cells: { x: number; y: number; on: boolean }[] = [];
   let bit = 0n;

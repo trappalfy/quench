@@ -11,7 +11,15 @@ import { serverClient } from "@/lib/client";
 import { readLaunch } from "@/lib/reads/launches";
 import { inRangeEthReserve } from "@/lib/reads/pool";
 import { ADDRESSES, explorerAddress } from "@/lib/chain";
-import { curveProgress, curveTarget, fdvOf, lifecycleOf, priceOf } from "@/lib/derive";
+import {
+  blockHeat,
+  curveProgress,
+  curveTarget,
+  fdvOf,
+  lifecycleOf,
+  priceOf,
+  temperatureOf,
+} from "@/lib/derive";
 import {
   blocksToApproxAge,
   formatCompactTokens,
@@ -44,6 +52,8 @@ export default async function TokenPage({
   if (!launch || launch.record.token === ZERO) notFound();
 
   const state = lifecycleOf(launch);
+  const heat = blockHeat(launch, head);
+  const temperature = temperatureOf(launch);
   const price = priceOf(launch);
   const fdv = fdvOf(launch);
   const progress = curveProgress(launch);
@@ -59,7 +69,7 @@ export default async function TokenPage({
       <Nav head={head} />
       <main className="mx-auto max-w-7xl px-4 py-8">
         <header className="flex flex-wrap items-start gap-4">
-          <Tile address={token} state={state} px={72} />
+          <Tile address={token} temperature={temperature} px={72} />
           <div className="min-w-0 flex-1">
             <p className="q-label">
               / {state === "set" ? "graduated · rules set" : "on the curve · still molten"}
@@ -172,7 +182,7 @@ export default async function TokenPage({
               </Panel>
             )}
 
-            <HookPanel launch={launch} head={head} />
+            <HookPanel launch={launch} head={head} heat={heat} />
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">

@@ -1,5 +1,6 @@
-import { parseAbiItem, type Hex, type PublicClient } from "viem";
+import { getAbiItem, type Hex, type PublicClient } from "viem";
 import { ADDRESSES } from "../chain";
+import { BlockHookAbi } from "../abi";
 
 /**
  * Reads that come from event logs rather than storage.
@@ -10,7 +11,9 @@ import { ADDRESSES } from "../chain";
  * single response, which `splitOnCap` handles by halving the window.
  */
 
-const AUTO_BURNED = parseAbiItem("event AutoBurned(bytes32 indexed id, uint256 amount)");
+/// From the generated ABI, not hand-written: a topic is the hash of an exact
+/// signature, and one wrong type matches nothing without erroring.
+const AUTO_BURNED = getAbiItem({ abi: BlockHookAbi, name: "AutoBurned" });
 
 const LOG_CAP_MESSAGE = /exceeds limit/i;
 
