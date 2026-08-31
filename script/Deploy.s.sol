@@ -31,8 +31,11 @@ contract DeployScript is Script {
     address internal constant CREATE2_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
     uint160 internal constant HOOK_FLAGS = 0x28CC;
 
+    /// @dev The signer is supplied by the CLI (`--account`, `--ledger`, or
+    /// `--interactive`), never read from a file or an environment variable. A
+    /// deployment key is a bearer credential: keeping it out of the repository,
+    /// out of the shell history and out of the process environment is free.
     function run() external {
-        uint256 pk = vm.envUint("DEPLOYER_PK");
         address protocolFeeRecipient = vm.envAddress("PROTOCOL_FEE_RECIPIENT");
         uint256 maxPoolEthWei = vm.envUint("MAX_POOL_ETH_WEI");
 
@@ -43,7 +46,7 @@ contract DeployScript is Script {
 
         IPoolManager manager = IPoolManager(POOL_MANAGER);
 
-        vm.startBroadcast(pk);
+        vm.startBroadcast();
 
         BoundedRouter router = new BoundedRouter(manager);
         HookDeployer hookDeployer = new HookDeployer(manager);
