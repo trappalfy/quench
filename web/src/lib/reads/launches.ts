@@ -1,6 +1,6 @@
 import type { Address, Hex, PublicClient } from "viem";
 import { LaunchpadAbi, BlockHookAbi, PotVaultAbi, LaunchTokenAbi, BondingCurveAbi } from "../abi";
-import { ADDRESSES } from "../chain";
+import { ADDRESSES, DEAD } from "../chain";
 import { poolIdOf, readPoolState, type PoolKey, type PoolState } from "./pool";
 
 export type BlockConfig = {
@@ -47,6 +47,9 @@ export type Launch = {
   pool: PoolState | null;
   hookState: HookState;
   potBalance: bigint;
+  /// Held at 0x…dEaD. The auto-burn block sends output there and it can never
+  /// come back, so this is the honest measure of what has left circulation.
+  burned: bigint;
   curve: CurveState | null;
 };
 
@@ -135,7 +138,7 @@ export async function readLaunch(
 
   const poolId = poolIdOf(key);
 
-  const [hookState, potBalance] = await Promise.all([
+  const [hookState, potBalance, burned] = await Promise.all([
     client.readContract({
       address: ADDRESSES.blockHook,
       abi: BlockHookAbi,
@@ -148,6 +151,12 @@ export async function readLaunch(
       functionName: "balanceOf",
       args: [poolId],
     }) as Promise<bigint>,
+    client.readContract({
+      address: token,
+      abi: LaunchTokenAbi,
+      functionName: "balanceOf",
+      args: [DEAD],
+    }) as Promise<bigint>,
   ]);
 
   // A pool only exists once the token has graduated; before that the curve is
@@ -159,7 +168,7 @@ export async function readLaunch(
       ? await readCurveState(client, record.curve)
       : null;
 
-  return { record, name, symbol, totalSupply, key, poolId, pool, hookState, potBalance, curve };
+  return { record, name, symbol, totalSupply, key, poolId, pool, hookState, potBalance, burned, curve };
 }
 
 export async function readCurveState(

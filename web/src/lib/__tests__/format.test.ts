@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatEthCompact,
+  ordinal,
   formatEth,
   formatPrice,
   formatCompactTokens,
@@ -132,5 +133,18 @@ describe("formatEthCompact", () => {
   it("leaves human-sized amounts exact", () => {
     expect(formatEthCompact(5n * ETH)).toBe("5.0000");
     expect(formatEthCompact(9_999n * ETH)).toBe("9,999");
+  });
+});
+
+describe("ordinal", () => {
+  it("suffixes by the last digit", () => {
+    expect([1, 2, 3, 4, 5].map(ordinal)).toEqual(["1st", "2nd", "3rd", "4th", "5th"]);
+    expect(ordinal(21)).toBe("21st");
+    expect(ordinal(102)).toBe("102nd");
+  });
+
+  it("treats the teens as the exception they are", () => {
+    expect([11, 12, 13].map(ordinal)).toEqual(["11th", "12th", "13th"]);
+    expect(ordinal(111)).toBe("111th");
   });
 });
