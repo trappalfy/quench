@@ -68,57 +68,78 @@ contract DeployScript is Script {
         require(BlockHook(payable(hook)).router() == address(router), "hook is wired to the wrong router");
         require(BlockHook(payable(hook)).potVault().hook() == hook, "vault is wired to the wrong hook");
 
-        _write(address(router), address(launchpad), hook, salt, protocolFeeRecipient, maxPoolEthWei);
+        _write(
+            Deployment({
+                router: address(router),
+                hookDeployer: address(hookDeployer),
+                launchpad: address(launchpad),
+                hook: hook,
+                vault: address(BlockHook(payable(hook)).potVault()),
+                curveImpl: launchpad.curveImplementation(),
+                salt: salt,
+                protocolFeeRecipient: protocolFeeRecipient,
+                maxPoolEthWei: maxPoolEthWei
+            })
+        );
     }
 
-    function _write(
-        address router,
-        address launchpad,
-        address hook,
-        bytes32 salt,
-        address protocolFeeRecipient,
-        uint256 maxPoolEthWei
-    ) internal {
-        address vault = address(BlockHook(payable(hook)).potVault());
-        address curveImpl = Launchpad(payable(launchpad)).curveImplementation();
-        address deployer = address(Launchpad(payable(launchpad)).hookDeployer());
+    /// @dev Carried as one memory struct rather than nine arguments: the record
+    /// has grown past what the legacy code generator can keep on the stack.
+    struct Deployment {
+        address router;
+        address hookDeployer;
+        address launchpad;
+        address hook;
+        address vault;
+        address curveImpl;
+        bytes32 salt;
+        address protocolFeeRecipient;
+        uint256 maxPoolEthWei;
+    }
 
-        console2.log("BoundedRouter        ", router);
-        console2.log("HookDeployer         ", deployer);
-        console2.log("Launchpad            ", launchpad);
-        console2.log("BlockHook            ", hook);
-        console2.log("PotVault             ", vault);
-        console2.log("BondingCurve (impl)  ", curveImpl);
-        console2.log("hook salt            ", vm.toString(salt));
+    function _write(Deployment memory d) internal {
+        console2.log("BoundedRouter        ", d.router);
+        console2.log("HookDeployer         ", d.hookDeployer);
+        console2.log("Launchpad            ", d.launchpad);
+        console2.log("BlockHook            ", d.hook);
+        console2.log("PotVault             ", d.vault);
+        console2.log("BondingCurve (impl)  ", d.curveImpl);
+        console2.log("hook salt            ", vm.toString(d.salt));
 
-        string memory json = string.concat(
+        string memory head = string.concat(
             '{\n  "chainId": ',
             vm.toString(block.chainid),
             ',\n  "poolManager": "',
             vm.toString(POOL_MANAGER),
             '",\n  "boundedRouter": "',
-            vm.toString(router),
+            vm.toString(d.router),
             '",\n  "hookDeployer": "',
-            vm.toString(deployer),
+            vm.toString(d.hookDeployer),
             '",\n  "launchpad": "',
-            vm.toString(launchpad),
+            vm.toString(d.launchpad),
             '",\n  "blockHook": "',
-            vm.toString(hook),
+            vm.toString(d.hook)
+        );
+
+        string memory tail = string.concat(
             '",\n  "potVault": "',
-            vm.toString(vault),
+            vm.toString(d.vault),
             '",\n  "curveImplementation": "',
-            vm.toString(curveImpl),
+            vm.toString(d.curveImpl),
             '",\n  "hookSalt": "',
-            vm.toString(salt),
+            vm.toString(d.salt),
             '",\n  "protocolFeeRecipient": "',
-            vm.toString(protocolFeeRecipient),
+            vm.toString(d.protocolFeeRecipient),
             '",\n  "maxPoolEthWei": "',
-            vm.toString(maxPoolEthWei),
+            vm.toString(d.maxPoolEthWei),
             '",\n  "deployBlock": ',
             vm.toString(block.number),
             "\n}\n"
         );
 
-        vm.writeFile(string.concat("deployments/", vm.toString(block.chainid), ".json"), json);
+        vm.writeFile(
+            string.concat("deployments/", vm.toString(block.chainid), ".json"),
+            string.concat(head, tail)
+        );
     }
 }
