@@ -111,3 +111,30 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Display type. Set once here rather than as an inline style on every heading,
+   so weight, width and tracking cannot drift apart between pages. Archivo is
+   variable on both axes; brutalist caps need it heavy and wide, and tracked
+   slightly negative so the letters lock into a block. */
+.q-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 125%;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  line-height: 0.92;
+}
+
+.q-display-sm {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 112%;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+
+/* A hairline rule that reads as a section break rather than a divider. */
+.q-rule {
+  border-top: 1px solid var(--color-line);
+}

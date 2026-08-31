@@ -31,6 +31,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${archivo.variable} ${mono.variable} antialiased`}>
+        {/* Ground layer: the engineering grid and the grain sit behind every
+            page, full bleed and fixed, so scrolling does not drag them and no
+            container can clip an edge into view. */}
+        <div aria-hidden className="q-grid q-grain pointer-events-none fixed inset-0 -z-10" />
         {children}
       </body>
     </html>

@@ -15,6 +15,8 @@ import { createPublicClient, http, formatEther } from "viem";
 import { robinhood } from "../src/lib/chain";
 import { readLaunchCount, readTokenPage, readLaunch, activeBlocks } from "../src/lib/reads/launches";
 import { inRangeEthReserve, priceWeiPerToken } from "../src/lib/reads/pool";
+import { curveTarget, fdvOf, priceOf } from "../src/lib/derive";
+import { BondingCurveAbi } from "../src/lib/abi";
 
 const rpc = process.argv[2] ?? "http://127.0.0.1:8545";
 
@@ -80,6 +82,21 @@ for (const token of tokens) {
     console.log(`   curve p0     ${l.curve.p0} wei`);
     check(l.curve.sold > 0n, "curve recorded the seeded buy");
     check(l.pool === null, "no pool state is read before graduation");
+
+    // curveTarget re-implements the curve's sellout sum in TypeScript. That is
+    // exactly the kind of formula that drifts, so it is checked against the
+    // contract's own answer rather than trusted.
+    const mine = curveTarget(l)!;
+    const theirs = await client.readContract({
+      address: l.record.curve,
+      abi: BondingCurveAbi,
+      functionName: "totalRaiseAtFullSellout",
+      args: [l.curve.p0],
+    });
+    console.log(`   target       ${formatEther(mine)} ETH`);
+    check(mine === theirs, `sellout target matches the contract exactly (${theirs} wei)`);
+    check(priceOf(l) === l.curve.tranchePrice, "curve price comes from the current tranche");
+    check(fdvOf(l)! > 0n, "FDV derives from that price and the fixed supply");
   }
 }
 

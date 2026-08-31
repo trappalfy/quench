@@ -52,8 +52,11 @@ export type Launch = {
 
 export type CurveState = {
   sold: bigint;
+  raised: bigint;
   graduated: boolean;
   p0: bigint;
+  tranche: number;
+  tranchePrice: bigint;
 };
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -163,10 +166,24 @@ export async function readCurveState(
   client: PublicClient,
   curve: Address,
 ): Promise<CurveState> {
-  const [sold, graduated, p0] = await Promise.all([
-    client.readContract({ address: curve, abi: BondingCurveAbi, functionName: "sold" }) as Promise<bigint>,
-    client.readContract({ address: curve, abi: BondingCurveAbi, functionName: "graduated" }) as Promise<boolean>,
-    client.readContract({ address: curve, abi: BondingCurveAbi, functionName: "p0" }) as Promise<bigint>,
+  const at = { address: curve, abi: BondingCurveAbi } as const;
+
+  const [sold, raised, graduated, p0] = await Promise.all([
+    client.readContract({ ...at, functionName: "sold" }),
+    client.readContract({ ...at, functionName: "raised" }),
+    client.readContract({ ...at, functionName: "graduated" }),
+    client.readContract({ ...at, functionName: "p0" }),
   ]);
-  return { sold, graduated, p0 };
+
+  // The tranche and its price are asked of the contract rather than recomputed
+  // from p0 and 1.7^i here. The curve's table is exact integer arithmetic; a
+  // float reimplementation would drift and quote a price the curve refuses.
+  const tranche = await client.readContract({ ...at, functionName: "trancheOf", args: [sold] });
+  const tranchePrice = await client.readContract({
+    ...at,
+    functionName: "priceOfTranche",
+    args: [tranche],
+  });
+
+  return { sold, raised, graduated, p0, tranche, tranchePrice };
 }
