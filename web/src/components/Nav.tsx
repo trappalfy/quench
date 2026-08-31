@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ConnectButton } from "./wallet/ConnectButton";
 
 const LINKS = [
   { href: "/app", label: "Discover" },
@@ -27,22 +28,25 @@ export function Nav({ head }: { head?: bigint }) {
             ))}
           </div>
 
-          {/* The head block tells live data from stale without a spinner. On a
-              narrow screen the word goes and the number stays, because the
-              number is the part that carries the meaning. */}
-          <span
-            className="q-label whitespace-nowrap"
-            title="Latest block read from Robinhood Chain"
-          >
-            {head !== undefined ? (
-              <>
-                <span className="hidden sm:inline">BLK </span>
-                {head.toString()}
-              </>
-            ) : (
-              "OFFLINE"
-            )}
-          </span>
+          <div className="flex items-center gap-3">
+            {/* The head block tells live data from stale without a spinner. On a
+                narrow screen the word goes and the number stays, because the
+                number is the part that carries the meaning. */}
+            <span
+              className="q-label hidden whitespace-nowrap sm:inline"
+              title="Latest block read from Robinhood Chain"
+            >
+              {head !== undefined ? (
+                <>
+                  <span className="hidden md:inline">BLK </span>
+                  {head.toString()}
+                </>
+              ) : (
+                "OFFLINE"
+              )}
+            </span>
+            <ConnectButton />
+          </div>
         </div>
 
         {/* Below md the links get their own row and scroll sideways rather than

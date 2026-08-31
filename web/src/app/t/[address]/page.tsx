@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isAddress, getAddress } from "viem";
 import { Nav } from "@/components/Nav";
+import { TradePanel } from "@/components/trade/TradePanel";
 import { Panel } from "@/components/Panel";
 import { Stat } from "@/components/Stat";
 import { Tile } from "@/components/Tile";
@@ -186,15 +187,16 @@ export default async function TokenPage({
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-            {/* Trading is not wired yet. An inert Buy button would be worse than
-                saying so: it implies a wallet path has been tested when none
-                has been written. */}
-            <Panel title="trade">
-              <p className="text-dim">
-                Trading from this page is not connected yet. Until it is, this page is
-                for reading the rules — every figure above comes straight from the chain.
-              </p>
-            </Panel>
+            {/* Whichever venue is actually the market for this token: the curve
+                until the last tranche sells out, the pool after. There is never
+                both, and offering both would be offering one that reverts. */}
+            <TradePanel
+              token={launch.record.token}
+              symbol={launch.symbol}
+              venue={launch.record.graduated ? "pool" : "curve"}
+              poolKey={launch.key}
+              curve={launch.record.curve}
+            />
 
             <Panel title="supply">
               <div className="grid grid-cols-2 gap-4">

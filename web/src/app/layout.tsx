@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, Martian_Mono } from "next/font/google";
 import { Footer } from "@/components/Footer";
+import { WalletProvider } from "@/lib/wallet/WalletContext";
 import "./globals.css";
 
 /// Display face: a grotesque with a width axis, so headlines can be stretched
@@ -40,8 +41,10 @@ export default function RootLayout({
     // declaration thrown away and the system stack taking over.
     <html lang="en" className={`${archivo.variable} ${mono.variable}`}>
       <body className="antialiased">
-        {children}
-        <Footer />
+        <WalletProvider>
+          {children}
+          <Footer />
+        </WalletProvider>
       </body>
     </html>
   );
