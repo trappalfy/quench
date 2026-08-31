@@ -147,3 +147,13 @@ export function ordinal(n: number): string {
       return `${n}th`;
   }
 }
+
+/// Whole counts — gas, blocks, buys. `toLocaleString` groups with whatever the
+/// runtime's locale uses, which differs between the server and the browser and
+/// showed up as a non-breaking space where every other figure on the page had a
+/// comma. Grouping is a house decision, not the machine's.
+export function formatCount(n: number): string {
+  const negative = n < 0;
+  const out = groupThousands(Math.abs(Math.round(n)).toString());
+  return negative ? `-${out}` : out;
+}

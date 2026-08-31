@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -10,6 +11,19 @@ const nextConfig: NextConfig = {
    * The `build` script sets NEXT_DIST_DIR; dev keeps the default.
    */
   distDir: process.env.NEXT_DIST_DIR || ".next",
+
+  /**
+   * The repo root, not `web/`. The interface quotes what a trade costs from
+   * `ts/src/simulate.ts`, which is the file the differential test checks
+   * against Solidity — a second copy inside `web/` would drift, and the first
+   * sign of it would be a quoted number the chain did not honour.
+   *
+   * Turbopack will not resolve above its root, and TypeScript is happy to, so
+   * without this the import typechecks and then fails at build.
+   */
+  turbopack: {
+    root: path.join(__dirname, ".."),
+  },
 };
 
 export default nextConfig;
