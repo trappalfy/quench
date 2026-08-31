@@ -30,8 +30,12 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={`${archivo.variable} ${mono.variable} antialiased`}>
+    // The font variables go on <html>, not <body>. The design tokens that
+    // compose them live in :root, and a token whose value references a variable
+    // declared *below* it resolves to nothing — silently, with the whole
+    // declaration thrown away and the system stack taking over.
+    <html lang="en" className={`${archivo.variable} ${mono.variable}`}>
+      <body className="antialiased">
         {children}
         <Footer />
       </body>

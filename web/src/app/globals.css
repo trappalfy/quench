@@ -30,10 +30,15 @@
 
   --color-fail: #ff5247;
 
-  --font-display: var(--font-archivo), "Arial Narrow", sans-serif;
-  --font-mono: var(--font-mono-face), ui-monospace, "SFMono-Regular", monospace;
-
   --radius-none: 0px;
+}
+
+/* Declared here rather than in @theme: Tailwind v4 emits only the theme
+   variables its generated utilities reference, and these are consumed by plain
+   CSS rules instead. In @theme they were tree-shaken out of the build. */
+:root {
+  --font-display: var(--font-archivo), "Arial Narrow", Impact, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
 
 :root {
