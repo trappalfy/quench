@@ -9,3 +9,4 @@ broadcast/
 deployments/
 ts/dist/
 ts/package-lock.json
+verification/
