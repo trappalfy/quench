@@ -51,7 +51,7 @@ export default async function Home() {
       <main className="mx-auto max-w-7xl px-4">
         <section className="py-20">
           <p className="q-label">/ quench</p>
-          <h1 className="q-display mt-3 text-6xl sm:text-8xl">
+          <h1 className="q-display mt-3 text-5xl sm:text-7xl lg:text-8xl">
             Build the hook.
             <br />
             <span className="text-cyan">Then quench it.</span>
@@ -93,7 +93,7 @@ export default async function Home() {
 
         <section className="py-20">
           <p className="q-label">/ the five blocks</p>
-          <h2 className="q-display mt-2 text-4xl">Rules that run inside the swap</h2>
+          <h2 className="q-display mt-2 text-3xl sm:text-4xl">Rules that run inside the swap</h2>
           <p className="mt-4 max-w-xl text-dim">
             Each block is a branch in one immutable Uniswap v4 hook. A block is off when
             its parameters are zero, so what a token does is readable from the chain

@@ -64,7 +64,7 @@ export default async function TokenPage({
             <p className="q-label">
               / {state === "set" ? "graduated · rules set" : "on the curve · still molten"}
             </p>
-            <h1 className="q-display mt-1 text-5xl">{launch.name}</h1>
+            <h1 className="q-display mt-1 text-3xl sm:text-4xl lg:text-5xl">{launch.name}</h1>
             <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <span className={state === "set" ? "text-cyan" : "text-amber"}>
                 ${launch.symbol}

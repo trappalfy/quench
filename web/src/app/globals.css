@@ -73,6 +73,11 @@ body {
      numbers never re-flow their own container as they update. */
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+  /* Martian Mono is drawn wide. Narrowing the width axis and pulling the
+     tracking in slightly buys back the room the tables need without changing
+     the letterforms that made it the choice. */
+  font-stretch: 87.5%;
+  letter-spacing: -0.01em;
 }
 
 /* Film grain, over everything and catching nothing. */
@@ -129,6 +134,9 @@ body::after {
    variable on both axes; brutalist caps need it heavy and wide, and tracked
    slightly negative so the letters lock into a block. */
 .q-display {
+  /* Display sizes are set per page and token names come from strangers. A word
+     that does not fit breaks; it never widens the page. */
+  overflow-wrap: anywhere;
   font-family: var(--font-display);
   font-weight: 800;
   font-stretch: 125%;
@@ -138,6 +146,7 @@ body::after {
 }
 
 .q-display-sm {
+  overflow-wrap: anywhere;
   font-family: var(--font-display);
   font-weight: 700;
   font-stretch: 112%;

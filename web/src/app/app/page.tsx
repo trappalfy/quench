@@ -28,7 +28,7 @@ export default async function Discover() {
       <main className="mx-auto max-w-7xl px-4 py-8">
         <p className="q-label">/ discover</p>
         <h1
-          className="q-display mt-2 text-6xl"
+          className="q-display mt-2 text-4xl sm:text-5xl lg:text-6xl"
         >
           Markets with
           <br />

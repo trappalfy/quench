@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Archivo, JetBrains_Mono } from "next/font/google";
+import { Archivo, Martian_Mono } from "next/font/google";
 import { Footer } from "@/components/Footer";
 import "./globals.css";
 
@@ -12,11 +12,15 @@ const archivo = Archivo({
   display: "swap",
 });
 
-/// Everything that is data, a label, or navigation. Tabular figures matter more
-/// here than character; numbers must not shift their own column as they update.
-const mono = JetBrains_Mono({
+/// Everything that is data, a label, or navigation.
+///
+/// Martian Mono is the widest of the faces considered, and this product lives
+/// in dense columns of figures. It carries a width axis, so the body default is
+/// set narrow in CSS: the character survives and the horizontal cost does not.
+const mono = Martian_Mono({
   variable: "--font-mono-face",
   subsets: ["latin"],
+  axes: ["wdth"],
   display: "swap",
 });
 
