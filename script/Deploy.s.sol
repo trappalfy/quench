@@ -81,8 +81,10 @@ contract DeployScript is Script {
     ) internal {
         address vault = address(BlockHook(payable(hook)).potVault());
         address curveImpl = Launchpad(payable(launchpad)).curveImplementation();
+        address deployer = address(Launchpad(payable(launchpad)).hookDeployer());
 
         console2.log("BoundedRouter        ", router);
+        console2.log("HookDeployer         ", deployer);
         console2.log("Launchpad            ", launchpad);
         console2.log("BlockHook            ", hook);
         console2.log("PotVault             ", vault);
@@ -96,6 +98,8 @@ contract DeployScript is Script {
             vm.toString(POOL_MANAGER),
             '",\n  "boundedRouter": "',
             vm.toString(router),
+            '",\n  "hookDeployer": "',
+            vm.toString(deployer),
             '",\n  "launchpad": "',
             vm.toString(launchpad),
             '",\n  "blockHook": "',

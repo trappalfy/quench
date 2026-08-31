@@ -18,6 +18,7 @@ contract VerifyScript is Script {
 
         address poolManager = vm.parseJsonAddress(json, ".poolManager");
         address router = vm.parseJsonAddress(json, ".boundedRouter");
+        address hookDeployer = vm.parseJsonAddress(json, ".hookDeployer");
         address launchpad = vm.parseJsonAddress(json, ".launchpad");
         address hookAddr = vm.parseJsonAddress(json, ".blockHook");
         address vault = vm.parseJsonAddress(json, ".potVault");
@@ -34,6 +35,7 @@ contract VerifyScript is Script {
         require(hookAddr.code.length > 0, "hook has no code");
         require(vault.code.length > 0, "vault has no code");
         require(curveImpl.code.length > 0, "curve implementation has no code");
+        require(hookDeployer.code.length > 0, "hook deployer has no code");
 
         // The hook's address encodes its permissions; nothing else can.
         require(uint160(hookAddr) & 0x3FFF == 0x28CC, "hook address lacks the required flags");
@@ -46,6 +48,7 @@ contract VerifyScript is Script {
         require(hook.potVault().hook() == hookAddr, "vault points at the wrong hook");
         require(pad.hook() == hookAddr, "launchpad points at the wrong hook");
         require(pad.router() == router, "launchpad points at the wrong router");
+        require(address(pad.hookDeployer()) == hookDeployer, "launchpad points at the wrong hook deployer");
         require(pad.protocolFeeRecipient() == feeRecipient, "fee recipient does not match the record");
         require(pad.curveImplementation() == curveImpl, "curve implementation does not match the record");
         require(BondingCurve(payable(curveImpl)).launchpad() == launchpad, "curve points at the wrong launchpad");
