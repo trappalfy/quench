@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+/*
+  Quench — cyber-brutalist tokens.
+
+  The two accents carry lifecycle state and nothing else:
+    amber = hot, not yet set   (curve, guard window, raised fee, pending tx)
+    cyan  = cold, set forever  (graduated pool, immutable hook, confirmed tx)
+
+  Price direction is deliberately colourless — sign and glyph only. Adding a
+  green/red pair on top of amber/cyan would leave four signal colours competing
+  and turn the page into a casino. Red is reserved for failure.
+*/
+@theme {
+  --color-ground: #060607;
+  --color-panel: #0b0c0e;
+  --color-raised: #101215;
+
+  --color-line: #1d2024;
+  --color-line-bright: #31363d;
+
+  --color-text: #e8eaec;
+  --color-dim: #8b939c;
+  --color-faint: #565d65;
+
+  --color-amber: #ffa31a;
+  --color-amber-deep: #7a4a00;
+  --color-cyan: #35e0e8;
+  --color-cyan-deep: #06555a;
+
+  --color-fail: #ff5247;
+
+  --font-display: var(--font-archivo), "Arial Narrow", sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, "SFMono-Regular", monospace;
+
+  --radius-none: 0px;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-ground);
+  color: var(--color-text);
+}
+
+body {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  /* Every figure in this product sits in a column. Tabular by default means
+     numbers never re-flow their own container as they update. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Nothing here is rounded. Stated once so no component has to remember. */
+*,
+*::before,
+*::after {
+  border-radius: 0;
+}
+
+::selection {
+  background: var(--color-amber);
+  color: var(--color-ground);
+}
+
+:focus-visible {
+  outline: 1px solid var(--color-cyan);
+  outline-offset: 2px;
+}
+
+/* --- motifs ------------------------------------------------------------- */
+
+/* A faint engineering grid over the page ground. Sized in absolute px so it
+   never scales with content. */
+.q-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-line) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-line) 55%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Film grain. A single tiled SVG of fractal noise, no image request. */
+.q-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Micro-label: the "/ SECTION" mark used to open a block. */
+.q-label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
