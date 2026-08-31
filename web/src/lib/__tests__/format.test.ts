@@ -63,6 +63,17 @@ describe("formatCompactTokens", () => {
   });
 });
 
+describe("formatCompactTokens near zero", () => {
+  it("says <1 rather than 0 for dust", () => {
+    expect(formatCompactTokens(1n)).toBe("<1");
+    expect(formatCompactTokens(ETH - 1n)).toBe("<1");
+  });
+
+  it("says 0 only for actual zero", () => {
+    expect(formatCompactTokens(0n)).toBe("0");
+  });
+});
+
 describe("fee units", () => {
   it("reads basis points against 10,000", () => {
     expect(formatBps(10_000)).toBe("100%");

@@ -49,6 +49,10 @@ export default async function TokenPage({
   const progress = curveProgress(launch);
   const target = curveTarget(launch);
   const reserve = launch.pool ? inRangeEthReserve(launch.pool) : null;
+  const burnedShare =
+    launch.totalSupply === 0n
+      ? 0
+      : Number((launch.burned * 10_000n) / launch.totalSupply) / 10_000;
 
   return (
     <>
@@ -171,7 +175,7 @@ export default async function TokenPage({
             <HookPanel launch={launch} head={head} />
           </div>
 
-          <aside className="space-y-6">
+          <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
             {/* Trading is not wired yet. An inert Buy button would be worse than
                 saying so: it implies a wallet path has been tested when none
                 has been written. */}
@@ -179,6 +183,51 @@ export default async function TokenPage({
               <p className="text-dim">
                 Trading from this page is not connected yet. Until it is, this page is
                 for reading the rules — every figure above comes straight from the chain.
+              </p>
+            </Panel>
+
+            <Panel title="supply">
+              <div className="grid grid-cols-2 gap-4">
+                <Stat
+                  label="minted"
+                  value={formatCompactTokens(launch.totalSupply)}
+                  suffix={launch.symbol}
+                  width={9}
+                />
+                <Stat
+                  label="burned in total"
+                  value={formatCompactTokens(launch.burned)}
+                  suffix={launch.symbol}
+                  width={9}
+                />
+              </div>
+
+              <div className="mt-3">
+                <QuenchLine progress={burnedShare} done={false} />
+              </div>
+
+              {/* Two different burns end up at the same address and they are not
+                  the same thing. Merging them would credit the Auto Burn rule
+                  with supply the launchpad destroyed before anyone traded. */}
+              <dl className="mt-3 space-y-1.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <dt className="q-label">by the auto burn rule</dt>
+                  <dd>{formatCompactTokens(launch.burnedByHook)}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-2">
+                  <dt className="q-label" title="Supply that did not fit the opening position">
+                    at launch, as leftover
+                  </dt>
+                  <dd>{formatCompactTokens(launch.burnedAtLaunch)}</dd>
+                </div>
+              </dl>
+
+              <p className="mt-3 text-dim">
+                {launch.burned === 0n
+                  ? "Nothing has been burned yet. Supply is fixed at mint; it can only ever shrink."
+                  : launch.burnedAtLaunch > launch.burnedByHook
+                    ? `${(burnedShare * 100).toFixed(2)}% of the supply is at the dead address, most of it burned when the pool opened because it did not fit the position at the opening price.`
+                    : `${(burnedShare * 100).toFixed(2)}% of the supply is at the dead address and cannot come back.`}
               </p>
             </Panel>
 
@@ -203,10 +252,9 @@ export default async function TokenPage({
         </div>
 
         <p className="q-rule mt-10 pt-4 text-faint">
-          Quench has not been audited. The pot is won on a public counter, not a random
-          one, and it will be raced. Nothing here is advice.{" "}
-          <Link href="/docs" className="underline hover:text-text">
-            What we do and do not claim
+          Every figure on this page is read from the chain at request time.{" "}
+          <Link href="/methodology" className="underline hover:text-text">
+            How each one is computed
           </Link>
         </p>
       </main>

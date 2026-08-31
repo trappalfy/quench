@@ -17,7 +17,7 @@ export default async function Discover() {
   ]);
 
   const tokens = await readTokenPage(serverClient, 0, PAGE, count);
-  const launches = await Promise.all(tokens.map((t) => readLaunch(serverClient, t)));
+  const launches = await Promise.all(tokens.map((t) => readLaunch(serverClient, t, head)));
 
   const set = launches.filter((l) => l.record.graduated);
   const molten = launches.filter((l) => !l.record.graduated);

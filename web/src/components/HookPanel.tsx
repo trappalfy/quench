@@ -54,7 +54,10 @@ export function HookPanel({ launch, head }: { launch: Launch; head: bigint }) {
         armed={on.autoBurn}
         name="Auto Burn"
         rule={`${formatBps(cfg.burnBps)} of the tokens an exact-input buy produces go straight to the dead address${cfg.burnTriggerWei > 0n ? `, on buys of at least ${formatEth(cfg.burnTriggerWei)} ETH` : ""}.`}
-        live={{ label: "burned so far", value: `${formatCompactTokens(launch.burned)} ${launch.symbol}` }}
+        live={{
+          label: "burned by this rule",
+          value: `${formatCompactTokens(launch.burnedByHook)} ${launch.symbol}`,
+        }}
       />
       <Rule
         armed={on.lpRewards}

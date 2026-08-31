@@ -17,7 +17,14 @@ import {InstantParams, CurveParams} from "../src/interfaces/ILaunchpad.sol";
 contract SeedScript is Script {
     Launchpad constant PAD = Launchpad(payable(0x5eE09DF35b6C3503D8fAc6A2863aFd4edBC73a6c));
     BoundedRouter constant ROUTER = BoundedRouter(payable(0xD689c128506611e05bf72212eA94B7Df4f9C7C17));
-    uint160 constant SQRT_PRICE_1_1 = 79228162514264337593543950336;
+    /// 5 gwei per whole token: 5 ETH against a billion supply, so nearly all
+    /// of it fits the opening position instead of being burned as leftover.
+    ///
+    /// Deliberately not 1:1. A 1:1 seed is the one price at which an inverted
+    /// price formula reads correctly, and the reading layer had exactly that
+    /// bug while every fork check passed.
+    uint160 constant SQRT_PRICE_5_GWEI = 1120455419495722798374638764549163;
+    uint256 constant OPENING_PRICE_WEI = 5_000_000_000;
 
     function allBlocks() internal pure returns (BlockConfig memory cfg) {
         cfg.guardBlocks = 50;
@@ -49,7 +56,7 @@ contract SeedScript is Script {
                 cfg: allBlocks(),
                 creatorFeeBps: 5_000,
                 blueprintId: 0,
-                sqrtPriceX96: SQRT_PRICE_1_1
+                sqrtPriceX96: SQRT_PRICE_5_GWEI
             })
         );
 
@@ -76,5 +83,6 @@ contract SeedScript is Script {
         console2.log("curved      ", curved);
         console2.log("curve       ", curve);
         console2.log("launchCount ", PAD.launchCount());
+        console2.log("openingPrice", OPENING_PRICE_WEI);
     }
 }

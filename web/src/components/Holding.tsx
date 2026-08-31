@@ -24,7 +24,9 @@ export function Holding({
   return (
     <>
       <Nav head={head} />
-      <main className="mx-auto max-w-3xl px-4 py-16">
+      {/* Short by nature. Centred in whatever space is left between nav and
+          footer, so the emptiness reads as composition rather than a hole. */}
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 py-16">
         <p className="q-label">/ {route}</p>
         <h1 className="q-display mt-2 text-5xl">{title}</h1>
         <p className="mt-4 text-amber">Not built yet.</p>

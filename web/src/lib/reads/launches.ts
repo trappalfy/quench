@@ -2,6 +2,7 @@ import type { Address, Hex, PublicClient } from "viem";
 import { LaunchpadAbi, BlockHookAbi, PotVaultAbi, LaunchTokenAbi, BondingCurveAbi } from "../abi";
 import { ADDRESSES, DEAD } from "../chain";
 import { poolIdOf, readPoolState, type PoolKey, type PoolState } from "./pool";
+import { readAutoBurned } from "./logs";
 
 export type BlockConfig = {
   guardBlocks: number;
@@ -47,9 +48,15 @@ export type Launch = {
   pool: PoolState | null;
   hookState: HookState;
   potBalance: bigint;
-  /// Held at 0x…dEaD. The auto-burn block sends output there and it can never
-  /// come back, so this is the honest measure of what has left circulation.
+  /// Everything held at 0x…dEaD: what the hook burned plus what the launchpad
+  /// burned at launch. Never show this as the work of the Auto Burn rule.
   burned: bigint;
+  /// The part of it the Auto Burn block is responsible for, counted from its
+  /// own events.
+  burnedByHook: bigint;
+  /// Supply that did not fit the opening position and was burned by the
+  /// launchpad in the launch transaction. Not a rule, a consequence of price.
+  burnedAtLaunch: bigint;
   curve: CurveState | null;
 };
 
@@ -117,6 +124,7 @@ export async function readTokenPage(
 export async function readLaunch(
   client: PublicClient,
   token: Address,
+  head?: bigint,
 ): Promise<Launch> {
   const [record, key, name, symbol, totalSupply] = await Promise.all([
     client.readContract({
@@ -168,7 +176,30 @@ export async function readLaunch(
       ? await readCurveState(client, record.curve)
       : null;
 
-  return { record, name, symbol, totalSupply, key, poolId, pool, hookState, potBalance, burned, curve };
+  const burnedByHook = await readAutoBurned(
+    client,
+    poolId,
+    record.launchBlock,
+    head ?? (await client.getBlockNumber()),
+  ).catch(() => 0n);
+
+  const burnedAtLaunch = burned > burnedByHook ? burned - burnedByHook : 0n;
+
+  return {
+    record,
+    name,
+    symbol,
+    totalSupply,
+    key,
+    poolId,
+    pool,
+    hookState,
+    potBalance,
+    burned,
+    burnedByHook,
+    burnedAtLaunch,
+    curve,
+  };
 }
 
 export async function readCurveState(

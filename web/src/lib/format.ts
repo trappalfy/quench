@@ -68,6 +68,10 @@ export function formatEthCompact(wei: bigint): string {
 /// Token counts run to a billion, so a feed column shows magnitude, not units.
 export function formatCompactTokens(amount: bigint): string {
   const whole = amount / ONE;
+  // A non-zero amount that rounds to zero must not print as "0". A dust burn
+  // shown as nothing reads as "this never happened", which is a different claim
+  // than "this happened and was tiny".
+  if (whole === 0n && amount > 0n) return "<1";
   if (whole >= 1_000_000_000n) return `${(Number(whole) / 1e9).toFixed(2)}B`;
   if (whole >= 1_000_000n) return `${(Number(whole) / 1e6).toFixed(2)}M`;
   if (whole >= 1_000n) return `${(Number(whole) / 1e3).toFixed(2)}K`;

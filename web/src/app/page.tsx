@@ -4,8 +4,7 @@ import { Panel } from "@/components/Panel";
 import { serverClient } from "@/lib/client";
 import { readLaunchCount } from "@/lib/reads/launches";
 import { LaunchpadAbi } from "@/lib/abi";
-import { ADDRESSES, explorerAddress } from "@/lib/chain";
-import { truncateAddress } from "@/lib/format";
+import { ADDRESSES } from "@/lib/chain";
 
 export const revalidate = 30;
 
@@ -116,19 +115,13 @@ export default async function Home() {
 
         <section className="q-rule py-16">
           <p className="q-label">/ what quench does not claim</p>
-          <div className="mt-4 grid gap-6 md:grid-cols-2">
+          <div className="mt-4 max-w-3xl">
             <p className="text-dim">
               The contracts have not been audited. The pot is won on a public counter, not
               a random one, and it will be raced. The hook charges its cuts on exact-input
               buys only — sells and exact-output buys pay the LP fee and nothing else.
               None of this is advice.
             </p>
-            <dl className="space-y-2">
-              <Row label="launchpad" value={ADDRESSES.launchpad} />
-              <Row label="hook" value={ADDRESSES.blockHook} />
-              <Row label="router" value={ADDRESSES.boundedRouter} />
-              <Row label="pool manager" value={ADDRESSES.poolManager} />
-            </dl>
           </div>
         </section>
       </main>
@@ -145,20 +138,3 @@ function Cell({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-2">
-      <dt className="q-label">{label}</dt>
-      <dd>
-        <a
-          href={explorerAddress(value)}
-          target="_blank"
-          rel="noreferrer"
-          className="hover:text-cyan"
-        >
-          {truncateAddress(value)} ↗
-        </a>
-      </dd>
-    </div>
-  );
-}

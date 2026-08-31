@@ -74,6 +74,19 @@ for (const token of tokens) {
     console.log(`   reserve      ${formatEther(reserve)} ETH`);
     console.log(`   price        ${formatEther(priceWeiPerToken(l.pool.sqrtPriceX96))} ETH/token`);
     check(l.pool.sqrtPriceX96 > 0n, "slot0 decoded a real price — extsload slot maths holds");
+
+    // The seed opens at 5 gwei per token, deliberately not 1:1. At 1:1 an
+    // inverted price formula reads correctly, which is how one shipped.
+    const OPENING = 5_000_000_000n;
+    const read = priceWeiPerToken(l.pool.sqrtPriceX96);
+    // The seed buys after opening, which moves the price up a little, so this
+    // is a sanity band rather than an equality. It is wide on purpose: the bug
+    // it guards against reads 2e26 where the truth is 5e9, and no plausible
+    // trade closes that gap.
+    check(
+      read >= OPENING && read < (OPENING * 110n) / 100n,
+      `price reads at the opening price plus the seeded buy (${read} vs ${OPENING} wei/token opened)`,
+    );
     check(l.pool.liquidity > 0n, "liquidity decoded from stateSlot+3");
     check(reserve > 0n, "in-range ETH reserve is positive");
   } else {

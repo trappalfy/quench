@@ -110,9 +110,17 @@ export function inRangeEthReserve(state: PoolState): bigint {
   return (state.liquidity * (1n << 96n)) / state.sqrtPriceX96;
 }
 
-/// Price of one whole token in wei, from the pool's own sqrt price.
-/// currency0 is always native ETH here, so price = (sqrtP/2^96)^2 scaled to 1e18.
+/// Price of one whole token, in wei.
+///
+/// currency0 is native ETH and currency1 is the token, so sqrtPriceX96 encodes
+/// *tokens per ETH*: (sqrtP / 2^96)^2 = amount1/amount0. What a reader wants is
+/// the reciprocal, ETH per token, scaled to whole tokens.
+///
+/// This is the inverse of what it looks like it should be, and getting it
+/// backwards is invisible at a 1:1 price — which is exactly where the first
+/// fork test happened to sit. BondingCurve derives the graduation price as
+/// sqrt(1e18 * 2^192 / price), so this is that expression solved for price.
 export function priceWeiPerToken(sqrtPriceX96: bigint): bigint {
   if (sqrtPriceX96 === 0n) return 0n;
-  return (sqrtPriceX96 * sqrtPriceX96 * 10n ** 18n) >> 192n;
+  return ((10n ** 18n) << 192n) / (sqrtPriceX96 * sqrtPriceX96);
 }

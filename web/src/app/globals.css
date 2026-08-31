@@ -40,13 +40,27 @@
   color-scheme: dark;
 }
 
-html,
-body {
-  background: var(--color-ground);
+/* The ground lives on the root element, not on a layer behind the body.
+   A fixed element at a negative z-index sits behind body's own background,
+   which paints over it — the grid then only showed below the content box,
+   which read as a rendering fault rather than a texture. */
+html {
+  background-color: var(--color-ground);
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-line) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-line) 55%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-attachment: fixed;
   color: var(--color-text);
 }
 
 body {
+  background: transparent;
+  /* A column that is at least the viewport tall, so a short page pushes the
+     footer to the bottom instead of leaving a void under it. */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.5;
@@ -54,6 +68,17 @@ body {
      numbers never re-flow their own container as they update. */
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Film grain, over everything and catching nothing. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* Nothing here is rounded. Stated once so no component has to remember. */
@@ -75,24 +100,6 @@ body {
 
 /* --- motifs ------------------------------------------------------------- */
 
-/* A faint engineering grid over the page ground. Sized in absolute px so it
-   never scales with content. */
-.q-grid {
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--color-line) 55%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--color-line) 55%, transparent) 1px, transparent 1px);
-  background-size: 48px 48px;
-}
-
-/* Film grain. A single tiled SVG of fractal noise, no image request. */
-.q-grain::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
-}
 
 /* Micro-label: the "/ SECTION" mark used to open a block. */
 .q-label {
@@ -137,4 +144,12 @@ body {
 /* A hairline rule that reads as a section break rather than a divider. */
 .q-rule {
   border-top: 1px solid var(--color-line);
+}
+
+/* body is a flex column so the footer can be pushed down. In a flex container,
+   `margin-inline: auto` on a child overrides the default stretch and shrinks it
+   to its content — which quietly narrowed every page that centres its main.
+   Stating the width once here means no page has to remember. */
+body > main {
+  width: 100%;
 }
