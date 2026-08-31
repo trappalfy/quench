@@ -91,6 +91,16 @@ for (const token of tokens) {
       `price reads at the opening price plus the seeded buy (${read} vs ${OPENING} wei/token opened)`,
     );
     check(l.pool.liquidity > 0n, "liquidity decoded from stateSlot+3");
+
+    // The hook returns its fee per swap with v4's override flag, which never
+    // writes to slot0. So the stored fee is zero on a pool that charges 0.3%,
+    // and the token page once printed it as "fee right now: 0%". If this ever
+    // stops being zero the display is wrong in the other direction, so it is
+    // asserted rather than remembered.
+    check(
+      l.pool.lpFee === 0,
+      "the pool stores no fee — the hook overrides it per swap, so slot0's is 0",
+    );
     check(reserve > 0n, "in-range ETH reserve is positive");
   } else {
     if (!l.curve) fail("pre-graduation token has no curve");

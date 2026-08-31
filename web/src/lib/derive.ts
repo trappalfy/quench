@@ -85,12 +85,14 @@ export function blockHeat(l: Launch, head: bigint): BlockHeat {
   return {
     // Hot while the guard window is still counting down.
     antiSnipe: !on.antiSnipe ? "off" : guard !== null && guard > 0n ? "hot" : "armed",
-    // Hot when the pool is charging more than its base fee at this moment.
-    surgeFees: !on.surgeFees
-      ? "off"
-      : l.pool && l.pool.lpFee > cfg.baseFeePips
-        ? "hot"
-        : "armed",
+    // Never hot, and not for want of trying. This once asked whether the pool's
+    // stored fee was above the base fee, which sounds right and is not: the
+    // hook returns its fee per swap with v4's override flag, and that never
+    // writes to slot0. The stored fee on every Quench pool is zero, so the
+    // check could not fire and the figure beside it read "0%" on a pool
+    // charging 0.3%. Surge only exists during a swap; between swaps there is
+    // nothing happening, which is exactly what "armed" means.
+    surgeFees: on.surgeFees ? "armed" : "off",
     autoBurn: on.autoBurn ? "armed" : "off",
     lpRewards: on.lpRewards ? "armed" : "off",
     // Hot on the buy that wins it.

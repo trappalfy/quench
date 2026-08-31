@@ -1,4 +1,6 @@
 import { Panel } from "./Panel";
+import { inRangeEthReserve } from "@/lib/reads/pool";
+import { surgeFee } from "@/lib/simulate";
 import type { Launch } from "@/lib/reads/launches";
 import { buysUntilPot, guardRemaining, type BlockHeat, type Heat } from "@/lib/derive";
 import {
@@ -32,6 +34,15 @@ export function HookPanel({
   const guard = guardRemaining(launch, head);
   const untilPot = buysUntilPot(launch);
 
+  // What Surge would charge a buy of one percent of the pool's own reserve.
+  // A depth has to be named for the number to mean anything, so it is in the
+  // label rather than assumed.
+  const reserve = launch.pool ? inRangeEthReserve(launch.pool) : 0n;
+  const reference =
+    reserve > 0n
+      ? surgeFee(reserve / 100n, reserve, cfg.baseFeePips, cfg.maxFeePips, cfg.surgeSens)
+      : null;
+
   return (
     <Panel title="hook · fixed at launch, never mutable" ticks bodyClassName="divide-y divide-line">
       <Rule
@@ -51,9 +62,18 @@ export function HookPanel({
         name="Surge Fees"
         rule={`The LP fee climbs from ${formatPips(cfg.baseFeePips)} to ${formatPips(cfg.maxFeePips)} as a single buy eats further into the in-range depth. No oracle is consulted.`}
         live={
-          launch.pool
-            ? { label: "fee right now", value: formatPips(launch.pool.lpFee) }
-            : undefined
+          // Not `pool.lpFee`. The hook returns its fee per swap with v4's
+          // override flag, which never writes to slot0 — the stored fee on
+          // every Quench pool is zero, and showing it read as "this pool
+          // charges nothing". There is no current fee to read between swaps,
+          // so this quotes one at a stated depth instead, from the same
+          // arithmetic the hook runs.
+          reference === null
+            ? undefined
+            : {
+                label: "on a buy of 1% of the reserve",
+                value: formatPips(reference),
+              }
         }
       />
       <Rule
