@@ -40,3 +40,12 @@ ts/test
 web/.next
 web/.next-build
 web/shots
+
+# Local environment. web/.env.local points the server at an anvil fork; if it
+# reached the build, the deployed site would read a chain that only exists on
+# this machine. Production wants the fallback in lib/chain.ts, not a file.
+.env
+.env.*
+**/.env
+**/.env.*
+.vercel
