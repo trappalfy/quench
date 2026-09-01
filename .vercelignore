@@ -1,0 +1,42 @@
+# What Vercel uploads. The deployment unit is the repository, not web/, because
+# the interface imports the hook's arithmetic from ts/src/simulate.ts — the one
+# file a differential test checks against Solidity. A copy inside web/ would
+# drift, so the build has to be able to see the original.
+#
+# Everything below is either a build artifact, a dependency tree Vercel installs
+# itself, or Foundry material that has no part in rendering a page.
+
+node_modules
+**/node_modules
+
+# Foundry: dependencies, compiler output, and the cache that indexes it.
+lib
+out
+cache
+forge-cache
+broadcast
+
+# Solidity and its tests. Deployed and immutable; the site reads them from the
+# chain, never from disk.
+src
+test
+script
+foundry.toml
+foundry.lock
+remappings.txt
+
+# Explorer submission bundles and deployment records — the site reads addresses
+# from lib/chain.ts, not from these.
+verification
+deployments
+docs
+quench-redesign-prompt.md
+
+# The simulator's own tests and build output; only ts/src is imported.
+ts/dist
+ts/test
+
+# Next's local build directories.
+web/.next
+web/.next-build
+web/shots

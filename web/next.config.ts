@@ -24,6 +24,39 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname, ".."),
   },
+
+  /**
+   * Sent on every response.
+   *
+   * The frame rule is the one that matters here. This interface asks people to
+   * sign transactions, and a page that can be framed can be framed by a copy of
+   * itself with the amounts covered up. Nothing about Quench needs embedding,
+   * so the answer is no rather than same-origin.
+   *
+   * No CSP yet: wallet extensions inject into the page, and a policy written
+   * without testing against several of them would break connection for exactly
+   * the users it was meant to protect.
+   */
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), payment=()",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

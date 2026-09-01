@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "cross-env NEXT_DIST_DIR=.next-build next build --turbopack",
+    "vercel-build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
     "gen:abi": "node scripts/gen-abi.mjs",

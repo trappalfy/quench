@@ -25,10 +25,32 @@ const mono = Martian_Mono({
   display: "swap",
 });
 
+/// Absolute base for every og:image and canonical URL on the site.
+///
+/// Set NEXT_PUBLIC_SITE_URL once the real domain is attached. Until then Vercel
+/// supplies the production hostname it assigned, which keeps preview builds
+/// pointing at themselves rather than at a domain that does not resolve yet.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
+
+const TAGLINE =
+  "Build the hook, then quench it. Fixed-supply tokens behind immutable Uniswap v4 hooks on Robinhood Chain.";
+
 export const metadata: Metadata = {
-  title: "Quench",
-  description:
-    "Build the hook, then quench it. Fixed-supply tokens behind immutable Uniswap v4 hooks on Robinhood Chain.",
+  metadataBase: new URL(siteUrl),
+  title: { default: "Quench", template: "%s" },
+  description: TAGLINE,
+  applicationName: "Quench",
+  openGraph: {
+    type: "website",
+    siteName: "Quench",
+    title: "Quench",
+    description: TAGLINE,
+  },
+  twitter: { card: "summary_large_image", title: "Quench", description: TAGLINE },
 };
 
 export default function RootLayout({
