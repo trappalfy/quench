@@ -1,13 +1,23 @@
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Panel } from "@/components/Panel";
-import { Section, P, Strong, Code } from "@/components/Prose";
+import { Section, P, Strong, Code, Contents } from "@/components/Prose";
 import { serverClient } from "@/lib/client";
 import { ADDRESSES, CONSTANTS, explorerAddress } from "@/lib/chain";
 import { LIMITS } from "@/lib/hookConfig";
 import { formatCount } from "@/lib/format";
 
 export const revalidate = 30;
+
+const SECTIONS = [
+  ["the-token", "The token"],
+  ["two-paths", "Two ways to launch"],
+  ["the-blocks", "The five blocks"],
+  ["fees", "Where the money goes"],
+  ["blueprints", "Blueprints"],
+  ["limits", "Limits the contract enforces"],
+  ["not-claimed", "What Quench does not claim"],
+] as const;
 
 export const metadata = {
   title: "How it works — Quench",
@@ -37,26 +47,7 @@ export default async function Docs() {
         </p>
 
         <div className="mt-12 grid gap-8 lg:grid-cols-[200px_1fr] xl:grid-cols-[200px_1fr_260px]">
-          <nav className="lg:sticky lg:top-24 lg:self-start">
-            <p className="q-label">/ contents</p>
-            <ul className="mt-3 space-y-1">
-              {[
-                ["the-token", "The token"],
-                ["two-paths", "Two ways to launch"],
-                ["the-blocks", "The five blocks"],
-                ["fees", "Where the money goes"],
-                ["blueprints", "Blueprints"],
-                ["limits", "Limits the contract enforces"],
-                ["not-claimed", "What Quench does not claim"],
-              ].map(([id, label]) => (
-                <li key={id}>
-                  <a href={`#${id}`} className="text-dim hover:text-text">
-                    {label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          <Contents items={SECTIONS} />
 
           <div className="min-w-0 space-y-12">
             <Section id="the-token" title="The token">

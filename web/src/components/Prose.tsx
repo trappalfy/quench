@@ -52,3 +52,27 @@ export function Points({ items }: { items: ReactNode[] }) {
     </ul>
   );
 }
+
+/**
+ * The jump list beside a long written page.
+ *
+ * It earns its place twice: a page of sections is easier to navigate with one,
+ * and it gives the left column something to hold, so a narrow measure of prose
+ * does not sit alone against a wide empty page.
+ */
+export function Contents({ items }: { items: readonly (readonly [string, string])[] }) {
+  return (
+    <nav className="lg:sticky lg:top-24 lg:self-start">
+      <p className="q-label">/ contents</p>
+      <ul className="mt-3 space-y-1">
+        {items.map(([id, label]) => (
+          <li key={id}>
+            <a href={`#${id}`} className="text-dim hover:text-text">
+              {label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
