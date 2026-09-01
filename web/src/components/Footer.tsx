@@ -66,10 +66,23 @@ export function Footer() {
       </div>
 
       <div className="border-t border-line">
-        <p className="mx-auto max-w-7xl px-4 py-4 text-faint">
-          Quench has not been audited. The pot is won on a public counter, not a random
-          one, and it will be raced. Nothing here is financial advice.
-        </p>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-baseline justify-between gap-x-6 gap-y-2 px-4 py-4">
+          <p className="min-w-0 text-faint">
+            Quench has not been audited. The pot is won on a public counter, not a
+            random one, and it will be raced. Nothing here is financial advice.
+          </p>
+          {/* Kept off the columns above: these are read once, if at all, and
+              putting them beside the disclaimer is where a reader who wants
+              them will look. */}
+          <p className="flex shrink-0 gap-4">
+            <Link href="/terms" className="q-label hover:text-text">
+              Terms
+            </Link>
+            <Link href="/privacy" className="q-label hover:text-text">
+              Privacy
+            </Link>
+          </p>
+        </div>
       </div>
     </footer>
   );

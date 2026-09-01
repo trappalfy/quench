@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Panel } from "@/components/Panel";
+import { Section, P, Strong, Code } from "@/components/Prose";
 import { serverClient } from "@/lib/client";
 import { ADDRESSES, CONSTANTS, explorerAddress } from "@/lib/chain";
 import { LIMITS } from "@/lib/hookConfig";
@@ -345,37 +346,6 @@ export default async function Docs() {
       </main>
     </>
   );
-}
-
-function Section({
-  id,
-  title,
-  children,
-}: {
-  id: string;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="scroll-mt-24">
-      <h2 id={id} className="q-display scroll-mt-24 text-2xl sm:text-3xl">
-        {title}
-      </h2>
-      <div className="mt-4 space-y-4">{children}</div>
-    </section>
-  );
-}
-
-function P({ children }: { children: React.ReactNode }) {
-  return <p className="max-w-2xl text-dim">{children}</p>;
-}
-
-function Strong({ children }: { children: React.ReactNode }) {
-  return <span className="text-text">{children}</span>;
-}
-
-function Code({ children }: { children: React.ReactNode }) {
-  return <code className="text-text">{children}</code>;
 }
 
 function Block({

@@ -8,7 +8,17 @@ import type { MetadataRoute } from "next";
  * sitemap that is stale by the next launch. The feed at /app links every one of
  * them and is re-read on request, which is what a crawler should follow.
  */
-const ROUTES = ["", "/app", "/builder", "/launch", "/hooks", "/docs", "/methodology"];
+const ROUTES = [
+  "",
+  "/app",
+  "/builder",
+  "/launch",
+  "/hooks",
+  "/docs",
+  "/methodology",
+  "/terms",
+  "/privacy",
+];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = process.env.NEXT_PUBLIC_SITE_URL;
