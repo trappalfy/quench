@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { INDEXABLE, SITE_URL } from "@/lib/site";
 
 /**
  * The pages that exist whether or not anyone has launched anything.
@@ -21,11 +22,12 @@ const ROUTES = [
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL;
-  if (!base) return [];
+  // A preview deployment publishes no sitemap, for the same reason it asks
+  // not to be crawled.
+  if (!INDEXABLE) return [];
 
   return ROUTES.map((route) => ({
-    url: new URL(route || "/", base).toString(),
+    url: new URL(route || "/", SITE_URL).toString(),
     changeFrequency: route === "" || route === "/app" ? "hourly" : "weekly",
     priority: route === "" ? 1 : 0.7,
   }));

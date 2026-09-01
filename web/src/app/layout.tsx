@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Archivo, Martian_Mono } from "next/font/google";
 import { Footer } from "@/components/Footer";
 import { WalletProvider } from "@/lib/wallet/WalletContext";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 /// Display face: a grotesque with a width axis, so headlines can be stretched
@@ -25,22 +26,11 @@ const mono = Martian_Mono({
   display: "swap",
 });
 
-/// Absolute base for every og:image and canonical URL on the site.
-///
-/// Set NEXT_PUBLIC_SITE_URL once the real domain is attached. Until then Vercel
-/// supplies the production hostname it assigned, which keeps preview builds
-/// pointing at themselves rather than at a domain that does not resolve yet.
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : "http://localhost:3000");
-
 const TAGLINE =
   "Build the hook, then quench it. Fixed-supply tokens behind immutable Uniswap v4 hooks on Robinhood Chain.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
   title: { default: "Quench", template: "%s" },
   description: TAGLINE,
   applicationName: "Quench",

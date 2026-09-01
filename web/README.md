@@ -60,7 +60,10 @@ root directory" left on.
 - **Environment** — nothing is required. `QUENCH_RPC_URL` falls back to the
   public endpoint for 4663, and the contract addresses are constants, because
   every link between them onchain is immutable.
-- **`NEXT_PUBLIC_SITE_URL`** — set this once a real domain is attached. It is
-  what makes `robots.txt` allow crawling and what `sitemap.xml` is built from;
-  until it is set the site asks not to be indexed, so that the `*.vercel.app`
-  address does not become the copy search engines know.
+- **The canonical address** is `https://quench.click`, and it lives in
+  `src/lib/site.ts` rather than in a dashboard field. It decides what og:image
+  URLs resolve against, what `sitemap.xml` is built from, and who may crawl —
+  three things worth being able to find in a commit. `NEXT_PUBLIC_SITE_URL`
+  overrides it for a fork or a second deployment. A preview deployment
+  publishes no sitemap and asks not to be indexed, so a throwaway address never
+  competes with the real one for the same name.
