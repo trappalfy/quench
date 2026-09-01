@@ -9,8 +9,15 @@ const nextConfig: NextConfig = {
    * collision rather than relying on remembering not to.
    *
    * The `build` script sets NEXT_DIST_DIR; dev keeps the default.
+   *
+   * On Vercel the variable is ignored outright. Vercel works out where the
+   * output landed by loading this file in a process of its own, and that
+   * process does not necessarily carry the same environment as the build — so
+   * a configurable output directory is a way for the two to disagree and for a
+   * deployment to come back empty. A local convenience should not be able to
+   * reach production at all.
    */
-  distDir: process.env.NEXT_DIST_DIR || ".next",
+  distDir: process.env.VERCEL ? ".next" : process.env.NEXT_DIST_DIR || ".next",
 
   /**
    * The repo root, not `web/`. The interface quotes what a trade costs from
