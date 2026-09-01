@@ -11,3 +11,7 @@ ts/dist/
 ts/package-lock.json
 verification/
 web/shots/
+
+# Working brief, not part of the project. It was swept into a commit once by
+# `git add -A` and had to be amended back out; this stops that recurring.
+quench-redesign-prompt.md
