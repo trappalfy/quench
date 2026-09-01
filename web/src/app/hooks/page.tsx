@@ -91,9 +91,9 @@ export default async function Hooks() {
 
             <Panel title="publishing" bodyClassName="p-4">
               <p className="text-dim">
-                Publishing needs a wallet, and wallet connection is not built yet. The
-                builder is finished otherwise: it runs the same arithmetic the hook
-                runs and refuses what the hook would refuse.
+                Build a config in the builder and publish it from there. It runs the
+                same arithmetic the hook runs, refuses what the hook would refuse, and
+                simulates the publish against the launchpad before your wallet opens.
               </p>
               <Link
                 href="/builder"
