@@ -1,51 +1,54 @@
-# What Vercel uploads. The deployment unit is the repository, not web/, because
-# the interface imports the hook's arithmetic from ts/src/simulate.ts — the one
-# file a differential test checks against Solidity. A copy inside web/ would
-# drift, so the build has to be able to see the original.
+# What Vercel leaves out of a deployment. The deployment unit is the repository,
+# not web/, because the interface imports the hook's arithmetic from
+# ts/src/simulate.ts — the one file a differential test checks against Solidity.
+# A copy inside web/ would drift, so the build has to see the original.
 #
-# Everything below is either a build artifact, a dependency tree Vercel installs
-# itself, or Foundry material that has no part in rendering a page.
+# Every pattern here is anchored with a leading slash, and that is not style.
+# These follow .gitignore matching: a bare `src` matches a directory of that
+# name at ANY depth, so it takes out web/src along with the Solidity one, and
+# the build then succeeds with no app directory, no routes and a deployment
+# that answers 404 to everything. `lib`, `test`, `out` and `docs` all have the
+# same second meaning inside web/. Anchor them or they bite.
 
-node_modules
-**/node_modules
+/node_modules
+web/node_modules
+ts/node_modules
 
 # Foundry: dependencies, compiler output, and the cache that indexes it.
-lib
-out
-cache
-forge-cache
-broadcast
+/lib
+/out
+/cache
+/broadcast
 
 # Solidity and its tests. Deployed and immutable; the site reads them from the
 # chain, never from disk.
-src
-test
-script
-foundry.toml
-foundry.lock
-remappings.txt
+/src
+/test
+/script
+/foundry.toml
+/foundry.lock
+/remappings.txt
 
-# Explorer submission bundles and deployment records — the site reads addresses
-# from lib/chain.ts, not from these.
-verification
-deployments
-docs
-quench-redesign-prompt.md
+# Explorer submission bundles, deployment records and design notes — the site
+# reads addresses from web/src/lib/chain.ts, not from these.
+/verification
+/deployments
+/docs
+/quench-redesign-prompt.md
 
 # The simulator's own tests and build output; only ts/src is imported.
-ts/dist
-ts/test
+/ts/dist
+/ts/test
 
-# Next's local build directories.
-web/.next
-web/.next-build
-web/shots
-
-# Local environment. web/.env.local points the server at an anvil fork; if it
-# reached the build, the deployed site would read a chain that only exists on
-# this machine. Production wants the fallback in lib/chain.ts, not a file.
-.env
-.env.*
-**/.env
-**/.env.*
-.vercel
+# Next's build directories, and local environment. web/.env.local points the
+# server at an anvil fork on this machine; if it reached the build, the
+# deployed site would read a chain that only exists here.
+/web/.next
+/web/.next-build
+/web/shots
+/.env
+/.env.*
+/web/.env
+/web/.env.*
+/.vercel
+/web/.vercel
