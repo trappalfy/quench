@@ -51,7 +51,8 @@ export default async function Builder({
           <Link href="/launch" className="text-cyan hover:underline">
             the launch page
           </Link>{" "}
-          — and the panel on the right carries whatever you build here into it.
+          — and the panel below the five blocks carries whatever you build here
+          into it.
         </p>
 
         {carried && (

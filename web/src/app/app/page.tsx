@@ -7,8 +7,11 @@ import { readLaunch, readLaunchCount, readTokenPage, type Launch } from "@/lib/r
 import { readFeed } from "@/lib/reads/events";
 import { blocksToApproxAge } from "@/lib/format";
 
-/// Read on every request, cached briefly. Nothing here is prerendered: a feed
-/// that says "live from the chain" and serves a build-time snapshot is lying.
+/// Ten seconds, which for a chain with 0.1s blocks is about a hundred of them.
+/// A first copy is rendered at build and every copy after it is re-read, so
+/// what a visitor sees is never more than a few seconds behind the chain — a
+/// feed that says "live from the chain" and serves a build-time snapshot for
+/// an hour would be lying.
 export const revalidate = 10;
 
 const PAGE = 24;
@@ -16,7 +19,15 @@ const PAGE = 24;
 /// block rate is measured, not promised.
 const FEED_WINDOW = 900_000n;
 
-export default async function Discover() {
+/**
+ * Every read this page needs, in one place so that a failure is one failure.
+ *
+ * It has to be allowed to fail. This page is prerendered at build time and
+ * re-read on request, so an endpoint that stumbles for a second would
+ * otherwise take out a deployment or answer a visitor with a 500 — and a feed
+ * that cannot reach the chain has something honest to say instead.
+ */
+async function load() {
   const [head, count] = await Promise.all([
     serverClient.getBlockNumber(),
     readLaunchCount(serverClient),
@@ -24,8 +35,19 @@ export default async function Discover() {
 
   const tokens = await readTokenPage(serverClient, 0, PAGE, count);
   const launches = await Promise.all(tokens.map((t) => readLaunch(serverClient, t, head)));
+  // The feed is the one part allowed to come back empty on its own: five log
+  // queries are the likeliest thing here to hit a limit, and losing them is
+  // not a reason to lose the markets above them.
   const events = await readFeed(serverClient, launches, head, FEED_WINDOW).catch(() => []);
 
+  return { head, count, launches, events };
+}
+
+export default async function Discover() {
+  const data = await load().catch(() => null);
+  if (!data) return <Unreadable />;
+
+  const { head, count, launches, events } = data;
   const set = launches.filter((l) => l.record.graduated);
   const molten = launches.filter((l) => !l.record.graduated);
   const newest = launches.reduce<bigint | null>(
@@ -86,6 +108,38 @@ export default async function Discover() {
             />
           </aside>
         </div>
+      </main>
+    </>
+  );
+}
+
+/**
+ * What the page says when the chain did not answer.
+ *
+ * Not zeros. A registry with nothing in it and a registry we could not read
+ * look identical if both are drawn as "0 launches", and only one of them is
+ * true — so this says which one happened.
+ */
+function Unreadable() {
+  return (
+    <>
+      <Nav />
+      <main className="mx-auto max-w-7xl px-4 py-8">
+        <p className="q-label">/ discover</p>
+        <h1 className="q-display mt-2 text-4xl sm:text-5xl">
+          The chain did not answer
+        </h1>
+        <Panel className="mt-6 max-w-2xl" bodyClassName="px-4 py-6">
+          <p className="text-dim">
+            This page holds no data of its own — every figure on it is read from
+            Robinhood Chain when you ask for it, and that read failed. Nothing is
+            wrong with any token or pool; the endpoint did not reply.
+          </p>
+          <p className="mt-3 text-dim">
+            Reloading is worth trying. The contracts are reachable without this
+            site at any time.
+          </p>
+        </Panel>
       </main>
     </>
   );

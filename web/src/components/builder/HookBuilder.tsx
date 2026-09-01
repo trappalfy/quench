@@ -120,6 +120,8 @@ export function HookBuilder({ initial }: { initial?: BlockConfig }) {
         ))}
 
         <SwapPath cfg={cfg} quote={quote} amountIn={amountIn} />
+
+        <UseIt cfg={cfg} valid={issues.length === 0} />
       </div>
 
       <div className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:self-start">
@@ -128,7 +130,6 @@ export function HookBuilder({ initial }: { initial?: BlockConfig }) {
         <Validation issues={issues} />
         <Output cfg={cfg} />
         <Flags />
-        <UseIt cfg={cfg} valid={issues.length === 0} />
         <Publish cfg={cfg} valid={issues.length === 0} />
       </div>
     </div>
@@ -612,40 +613,55 @@ function Publish({ cfg, valid }: { cfg: BlockConfig; valid: boolean }) {
 }
 
 
+
 /**
- * The way out of the builder.
+ * The way out of the builder, at the end of the column the reader is already
+ * working down rather than off in the sidebar.
  *
  * This page settles the rules and nothing else — there is no name, no ticker
  * and no price here, because those belong to the transaction that opens the
- * pool rather than to the hook. Without this panel the two halves never met:
- * the launch wizard could accept a config from a link and the builder never
- * produced one, so a hook composed here could only be carried across by hand.
+ * pool rather than to the hook. Without this the two halves never met: the
+ * launch wizard could accept a config from a link and the builder never
+ * produced one.
+ *
+ * It sits sixth but is deliberately not numbered 06. The five numbers above
+ * are the contract's own names for the five branches inside the hook, and a
+ * sixth would claim there is a rule here that there is not.
  */
 function UseIt({ cfg, valid }: { cfg: BlockConfig; valid: boolean }) {
   return (
-    <Panel title="use it" bodyClassName="p-4">
-      <p className="text-dim">
-        The name, the ticker and the opening price are settled on the launch page,
-        not here. This carries the config above into it unchanged.
-      </p>
+    <Panel title="next" ticks bodyClassName="p-5">
+      <div className="grid gap-5 sm:grid-cols-[1fr_auto] sm:items-center">
+        <div>
+          <p className="q-display-sm text-xl sm:text-2xl">
+            The rules are settled. The token is not.
+          </p>
+          <p className="mt-2 max-w-xl text-dim">
+            A name, a ticker and an opening price belong to the transaction that
+            opens the pool, not to the hook — so they are asked for on the launch
+            page. This carries everything above into it unchanged, and sends
+            nothing: the config travels in the address bar, which also makes it a
+            link you can hand to someone else.
+          </p>
+        </div>
 
-      {valid ? (
-        <Link
-          href={`/launch?cfg=${toQuery(cfg)}`}
-          className="q-label mt-4 block border border-cyan px-3 py-2 text-center text-cyan hover:bg-cyan hover:text-ground"
-        >
-          launch a token with this hook
-        </Link>
-      ) : (
-        <p className="q-label mt-4 block cursor-not-allowed border border-line px-3 py-2 text-center text-faint">
-          fix the config first
-        </p>
-      )}
-
-      <p className="mt-3 text-[11px] text-faint">
-        Nothing is sent by following that link. It puts the config in the address
-        bar, which also makes it something you can send to someone else.
-      </p>
+        {valid ? (
+          <Link
+            href={`/launch?cfg=${toQuery(cfg)}`}
+            className="q-label block whitespace-nowrap border border-cyan px-5 py-4 text-center text-cyan hover:bg-cyan hover:text-ground"
+          >
+            launch a token
+            <br />
+            with this hook →
+          </Link>
+        ) : (
+          <p className="q-label block cursor-not-allowed whitespace-nowrap border border-fail px-5 py-4 text-center text-fail">
+            the hook would refuse
+            <br />
+            this config
+          </p>
+        )}
+      </div>
     </Panel>
   );
 }

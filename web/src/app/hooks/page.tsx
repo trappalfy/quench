@@ -15,7 +15,7 @@ export const metadata = {
 
 export default async function Hooks() {
   const [head, blueprints] = await Promise.all([
-    serverClient.getBlockNumber(),
+    serverClient.getBlockNumber().catch(() => undefined),
     readBlueprints(serverClient).catch(() => []),
   ]);
 

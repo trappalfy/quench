@@ -27,7 +27,7 @@ import {
  * means "happening at this block", and nothing is happening to a config sitting
  * in an array. Showing it in amber would borrow urgency it has not got.
  */
-export function BlueprintCard({ bp, head }: { bp: Blueprint; head: bigint }) {
+export function BlueprintCard({ bp, head }: { bp: Blueprint; head?: bigint }) {
   const on = blocksOn(bp.cfg);
   const armed = BLOCK_ORDER.filter((k) => on[k]);
 
@@ -80,7 +80,9 @@ export function BlueprintCard({ bp, head }: { bp: Blueprint; head: bigint }) {
         <Line k="published">
           {bp.publishedAt === null
             ? "—"
-            : `block ${bp.publishedAt} · ~${blocksToApproxAge(head - bp.publishedAt)} ago`}
+            : head === undefined
+              ? `block ${bp.publishedAt}`
+              : `block ${bp.publishedAt} · ~${blocksToApproxAge(head - bp.publishedAt)} ago`}
         </Line>
         <Line k="flat LP fee">{formatPips(bp.cfg.baseFeePips)}</Line>
 
