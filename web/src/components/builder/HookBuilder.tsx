@@ -20,6 +20,7 @@ import {
   gasFor,
   setBaseFee,
   setBlock,
+  toQuery,
   toSolidity,
   toTuple,
   validate,
@@ -127,6 +128,7 @@ export function HookBuilder({ initial }: { initial?: BlockConfig }) {
         <Validation issues={issues} />
         <Output cfg={cfg} />
         <Flags />
+        <UseIt cfg={cfg} valid={issues.length === 0} />
         <Publish cfg={cfg} valid={issues.length === 0} />
       </div>
     </div>
@@ -609,3 +611,41 @@ function Publish({ cfg, valid }: { cfg: BlockConfig; valid: boolean }) {
   );
 }
 
+
+/**
+ * The way out of the builder.
+ *
+ * This page settles the rules and nothing else — there is no name, no ticker
+ * and no price here, because those belong to the transaction that opens the
+ * pool rather than to the hook. Without this panel the two halves never met:
+ * the launch wizard could accept a config from a link and the builder never
+ * produced one, so a hook composed here could only be carried across by hand.
+ */
+function UseIt({ cfg, valid }: { cfg: BlockConfig; valid: boolean }) {
+  return (
+    <Panel title="use it" bodyClassName="p-4">
+      <p className="text-dim">
+        The name, the ticker and the opening price are settled on the launch page,
+        not here. This carries the config above into it unchanged.
+      </p>
+
+      {valid ? (
+        <Link
+          href={`/launch?cfg=${toQuery(cfg)}`}
+          className="q-label mt-4 block border border-cyan px-3 py-2 text-center text-cyan hover:bg-cyan hover:text-ground"
+        >
+          launch a token with this hook
+        </Link>
+      ) : (
+        <p className="q-label mt-4 block cursor-not-allowed border border-line px-3 py-2 text-center text-faint">
+          fix the config first
+        </p>
+      )}
+
+      <p className="mt-3 text-[11px] text-faint">
+        Nothing is sent by following that link. It puts the config in the address
+        bar, which also makes it something you can send to someone else.
+      </p>
+    </Panel>
+  );
+}

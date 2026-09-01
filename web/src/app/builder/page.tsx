@@ -44,6 +44,15 @@ export default async function Builder({
           executes, and checked against the same validation the contract applies.
           Nothing is sent anywhere until you launch.
         </p>
+        <p className="mt-3 max-w-2xl text-dim">
+          This page settles the rules and only the rules. A token&rsquo;s name, its
+          ticker and its opening price belong to the transaction that opens the pool,
+          so they are asked for on{" "}
+          <Link href="/launch" className="text-cyan hover:underline">
+            the launch page
+          </Link>{" "}
+          — and the panel on the right carries whatever you build here into it.
+        </p>
 
         {carried && (
           <p className="mt-4 border-l-2 border-cyan px-3 py-2 text-dim">
