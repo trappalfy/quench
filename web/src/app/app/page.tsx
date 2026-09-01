@@ -5,7 +5,9 @@ import { Panel } from "@/components/Panel";
 import { serverClient } from "@/lib/client";
 import { readLaunch, readLaunchCount, readTokenPage, type Launch } from "@/lib/reads/launches";
 import { readFeed } from "@/lib/reads/events";
-import { blocksToApproxAge } from "@/lib/format";
+import Link from "next/link";
+import { blocksToApproxAge, formatCount } from "@/lib/format";
+import { DEPLOY_BLOCK } from "@/lib/chain";
 
 /// Ten seconds, which for a chain with 0.1s blocks is about a hundred of them.
 /// A first copy is rendered at build and every copy after it is re-read, so
@@ -48,6 +50,7 @@ export default async function Discover() {
   if (!data) return <Unreadable />;
 
   const { head, count, launches, events } = data;
+  if (count === 0n) return <NothingYet head={head} />;
   const set = launches.filter((l) => l.record.graduated);
   const molten = launches.filter((l) => !l.record.graduated);
   const newest = launches.reduce<bigint | null>(
@@ -114,11 +117,68 @@ export default async function Discover() {
 }
 
 /**
+ * The page before anyone has used the launchpad.
+ *
+ * Four zeros, two empty sections and an empty feed are all true, and together
+ * they read as a broken page rather than a new one. This says the same thing
+ * in one sentence and then offers the only two things a visitor can actually
+ * do here today.
+ *
+ * It is a separate state from the one below on purpose: an empty registry and
+ * an unreadable one look identical drawn as "0 launches", and only one of them
+ * is a reason to come back later.
+ */
+function NothingYet({ head }: { head: bigint }) {
+  return (
+    <>
+      <Nav head={head} />
+      <main className="mx-auto max-w-7xl px-4 py-8">
+        <p className="q-label">/ discover</p>
+        <h1 className="q-display mt-2 text-4xl sm:text-5xl lg:text-6xl">
+          Nothing has
+          <br />
+          launched yet
+        </h1>
+        <p className="q-lead mt-4 max-w-2xl">
+          The registry is empty. Not unread — empty: the launchpad has been live
+          since block {formatCount(Number(DEPLOY_BLOCK))} and nobody has opened a
+          pool through it. Whoever goes first does it behind rules they choose and
+          nobody, us included, can change afterwards.
+        </p>
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            href="/launch"
+            className="border border-cyan px-7 py-4 text-base text-cyan transition-colors hover:bg-cyan hover:text-ground"
+          >
+            Launch the first token
+          </Link>
+          <Link
+            href="/builder"
+            className="border border-line-bright px-7 py-4 text-base transition-colors hover:border-text"
+          >
+            Compose a hook first
+          </Link>
+        </div>
+
+        <Panel title="why this page is empty rather than wrong" className="mt-12 max-w-2xl" bodyClassName="p-4">
+          <p className="text-dim">
+            There is no database behind this site. This page asks the launchpad how
+            many launches it holds and reads them back one by one, so an empty
+            registry and an empty page are the same fact — and the first launch
+            appears here within seconds of its transaction, with nobody listing it.
+          </p>
+        </Panel>
+      </main>
+    </>
+  );
+}
+
+/**
  * What the page says when the chain did not answer.
  *
- * Not zeros. A registry with nothing in it and a registry we could not read
- * look identical if both are drawn as "0 launches", and only one of them is
- * true — so this says which one happened.
+ * Not zeros, and not the empty state above: nothing is known about the
+ * registry here, so the page says that rather than guessing at it.
  */
 function Unreadable() {
   return (

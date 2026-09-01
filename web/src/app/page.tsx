@@ -19,6 +19,11 @@ export const revalidate = 30;
 /// preview that needs scrolling is the page it is previewing.
 const PREVIEW = 3;
 
+const PRIMARY =
+  "border border-cyan px-7 py-4 text-base text-cyan transition-colors hover:bg-cyan hover:text-ground";
+const SECONDARY =
+  "border border-line-bright px-7 py-4 text-base transition-colors hover:border-text";
+
 export default async function Home() {
   const [head, count, totals] = await Promise.all([
     serverClient.getBlockNumber().catch(() => null),
@@ -75,19 +80,32 @@ export default async function Home() {
               path and no pause. Not even us.
             </p>
 
+            {/* The first button has to lead somewhere worth arriving at.
+                Until something has launched, "Explore markets" promises a market
+                and delivers an empty room — so the builder takes the front,
+                which costs a visitor nothing and is the thing this site is
+                actually for. Discover stays in the navigation throughout, and
+                takes the front back the moment there is a market in it. */}
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/app"
-                className="border border-cyan px-7 py-4 text-base text-cyan transition-colors hover:bg-cyan hover:text-ground"
-              >
-                Explore markets
-              </Link>
-              <Link
-                href="/builder"
-                className="border border-line-bright px-7 py-4 text-base transition-colors hover:border-text"
-              >
-                Compose a hook
-              </Link>
+              {count > 0n ? (
+                <>
+                  <Link href="/app" className={PRIMARY}>
+                    Explore markets
+                  </Link>
+                  <Link href="/builder" className={SECONDARY}>
+                    Compose a hook
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/builder" className={PRIMARY}>
+                    Compose a hook
+                  </Link>
+                  <Link href="/launch" className={SECONDARY}>
+                    Launch the first token
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
