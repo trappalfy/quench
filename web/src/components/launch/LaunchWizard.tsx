@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatEther } from "viem";
 import { Panel } from "../Panel";
 import { CopyButton } from "../builder/CopyButton";
+import { TxButton } from "../wallet/TxButton";
 import { EthField, NumberField } from "../builder/Field";
 import {
   BLOCK_META,
@@ -22,6 +24,9 @@ import {
   tickerProblem,
 } from "@/lib/launchMath";
 import { ADDRESSES, CONSTANTS } from "@/lib/chain";
+import { useWallet } from "@/lib/wallet/WalletContext";
+import { browserClient } from "@/lib/client";
+import { launchCurve, launchInstant, launchedTokenFromReceipt } from "@/lib/writes/launchpad";
 import { formatBps, formatEth, formatPips, formatPrice } from "@/lib/format";
 
 /**
@@ -29,13 +34,15 @@ import { formatBps, formatEth, formatPips, formatPrice } from "@/lib/format";
  *
  * A launch fixes three things forever in one transaction — the rules, the
  * opening price and the creator's share — and none of them can be inspected
- * afterwards by anyone who was not watching. So the page computes all three,
- * checks them against the launchpad's own limits, and then hands over the exact
- * command rather than a button that does not work.
+ * afterwards by anyone who was not watching. So the page computes all three and
+ * checks them against the launchpad's own limits before offering a signature —
+ * and the launch itself is simulated once more, so a refusal arrives with the
+ * contract's error name instead of as a transaction someone already paid for.
  *
- * The command is `cast send --account`, which reads a keystore on your own
- * machine. This site never asks for a key, a phrase or a password, and there is
- * nowhere here to type one.
+ * The same launch is also printed as a `cast send --account` command, for
+ * anyone who would rather sign from a keystore on their own machine. This site
+ * never asks for a key, a phrase or a password, and there is nowhere here to
+ * type one.
  */
 
 type Mode = "instant" | "curve";
@@ -451,6 +458,9 @@ function Command({
   p0: bigint;
   ethIn: bigint;
 }) {
+  const { address, walletClient } = useWallet();
+  const router = useRouter();
+
   // The struct the launchpad takes, as one ABI tuple. Written out in full so it
   // can be checked against the interface rather than trusted.
   const params =
@@ -476,18 +486,47 @@ function Command({
       bodyClassName="p-4"
       right={ready ? <CopyButton text={command} label="copy command" /> : undefined}
     >
-      <button
-        type="button"
-        disabled
-        className="w-full cursor-not-allowed border border-off px-3 py-2 text-off"
+      <TxButton
+        label={mode === "instant" ? "Launch and open the pool" : "Launch on a curve"}
+        pendingLabel="Launching…"
+        doneLabel="Launched. Nothing about it can change now."
+        disabled={!ready || !walletClient}
+        run={() =>
+          mode === "instant"
+            ? launchInstant(
+                browserClient,
+                walletClient!,
+                address!,
+                {
+                  name,
+                  symbol,
+                  cfg,
+                  creatorFeeBps,
+                  blueprintId: BigInt(blueprintId),
+                  sqrtPriceX96,
+                },
+                ethIn,
+              )
+            : launchCurve(browserClient, walletClient!, address!, {
+                name,
+                symbol,
+                cfg,
+                creatorFeeBps,
+                blueprintId: BigInt(blueprintId),
+                p0,
+              })
+        }
+        onDone={(receipt) => {
+          // The launchpad returns the token address, but a receipt carries logs
+          // and not return values, so it comes from the Launched event.
+          const created = launchedTokenFromReceipt(receipt.logs);
+          if (created) router.push(`/t/${created}`);
+        }}
       >
-        Launch from the browser
-      </button>
-      <p className="mt-3 text-[11px] text-faint">
-        Wallet connection is not built yet, so this button does nothing and says so.
-        Everything else on this page is finished — the price, the config and the limits
-        are computed and checked here.
-      </p>
+        {ready
+          ? "Simulated against the launchpad first, so a refusal arrives by name rather than as a failed transaction."
+          : "Finish the checks above first."}
+      </TxButton>
 
       {ready && (
         <>

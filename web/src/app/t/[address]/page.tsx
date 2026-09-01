@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { isAddress, getAddress } from "viem";
 import { Nav } from "@/components/Nav";
 import { TradePanel } from "@/components/trade/TradePanel";
+import { ClaimFees } from "@/components/trade/ClaimFees";
 import { Panel } from "@/components/Panel";
 import { Stat } from "@/components/Stat";
 import { Tile } from "@/components/Tile";
@@ -197,6 +198,16 @@ export default async function TokenPage({
               poolKey={launch.key}
               curve={launch.record.curve}
             />
+
+            {/* Only once there is a pool. A curve collects its own fee and pays
+                it out on every trade, so there is nothing waiting to claim. */}
+            {launch.record.graduated && (
+              <ClaimFees
+                token={launch.record.token}
+                symbol={launch.symbol}
+                creatorFeeBps={launch.record.creatorFeeBps}
+              />
+            )}
 
             <Panel title="supply">
               <div className="grid grid-cols-2 gap-4">

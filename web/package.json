@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "shots": "cross-env MSYS_NO_PATHCONV=1 tsx scripts/shoot.mts",
     "test": "vitest run",
-    "e2e": "cross-env MSYS_NO_PATHCONV=1 tsx scripts/e2e-trade.mts"
+    "e2e": "cross-env MSYS_NO_PATHCONV=1 tsx scripts/e2e.mts"
   },
   "dependencies": {
     "next": "15.5.24",

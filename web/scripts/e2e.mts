@@ -1,11 +1,12 @@
 /**
- * Buys and sells through the actual interface, in a real browser, against a
- * forked chain.
+ * Every write the site can make, through the actual interface, in a real
+ * browser, against a forked chain.
  *
  * The unit tests check arithmetic and the fork script checks reads. Neither can
  * tell you that the connect button connects, that a quote appears, that the
- * right contract gets approved, or that a signature produces a receipt — and
- * every one of those is a place where trading silently does not work.
+ * right contract gets approved, that a launch finds its own token in the
+ * receipt, or that a signature produces anything at all — and every one of
+ * those is a place where the product silently does not work.
  *
  * The wallet is injected as an EIP-6963 provider that forwards to anvil. Anvil
  * unlocks its own accounts, so nothing here holds or asks for a key: the node
@@ -14,12 +15,13 @@
  *   anvil --fork-url https://rpc.mainnet.chain.robinhood.com
  *   forge script script/Seed.s.sol --rpc-url http://127.0.0.1:8545 --broadcast \
  *     --unlocked --sender 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
- *   npx tsx scripts/e2e-trade.mts
+ *   npx tsx scripts/e2e.mts
  */
 import { chromium, type Page } from "playwright";
 import { createPublicClient, http, formatEther, type Address } from "viem";
-import { robinhood } from "../src/lib/chain";
+import { ADDRESSES, robinhood } from "../src/lib/chain";
 import { readLaunchCount, readTokenPage, readLaunch } from "../src/lib/reads/launches";
+import { LaunchpadAbi } from "../src/lib/abi";
 
 const site = process.argv[2] ?? "http://127.0.0.1:3000";
 const rpc = process.argv[3] ?? "http://127.0.0.1:8545";
@@ -216,13 +218,90 @@ async function main() {
     `the sell moved exactly the 1000 tokens it was given (-${formatEther(heldBefore - heldAfter)})`,
   );
 
+  /* -- publishing a blueprint -------------------------------------------- */
+
+  console.log("\nbuilder");
+  await page.goto(`${site}/builder`, { waitUntil: "networkidle" });
+  const blueprintsBefore = await blueprintCount();
+
+  await page.getByRole("button", { name: "Publish as a blueprint" }).click();
+  await page.waitForSelector("text=Published, and now unchangeable.", { timeout: 30_000 });
+  const blueprintsAfter = await blueprintCount();
+  check(
+    blueprintsAfter === blueprintsBefore + 1n,
+    `the registry gained a blueprint (${blueprintsBefore} → ${blueprintsAfter})`,
+  );
+
+  await page.goto(`${site}/hooks`, { waitUntil: "networkidle" });
+  check(
+    await page.getByText(`blueprint ${blueprintsAfter - 1n}`, { exact: false }).first().isVisible(),
+    "the new blueprint appears in the registry",
+  );
+
+  /* -- launching a token -------------------------------------------------- */
+
+  console.log("\nlaunch");
+  await page.goto(`${site}/launch`, { waitUntil: "networkidle" });
+  const launchesBefore = await client
+    .readContract({
+      address: ADDRESSES.launchpad,
+      abi: LaunchpadAbi,
+      functionName: "launchCount",
+    })
+    .catch(() => 0n);
+
+  await page.getByPlaceholder("Seed Instant").fill("End To End");
+  await page.getByPlaceholder("SEED", { exact: true }).fill("E2E");
+
+  check(
+    await page.getByText("Nothing here would revert.").isVisible(),
+    "with a name and a ticker, nothing is left blocking the launch",
+  );
+
+  await page.getByRole("button", { name: "Launch and open the pool" }).click();
+  // The wizard sends you to the token it just created, which is the only proof
+  // that the address came back out of the receipt correctly.
+  await page.waitForURL(/\/t\/0x[0-9a-fA-F]{40}/, { timeout: 40_000 });
+  const launchesAfter = (await client.readContract({
+    address: ADDRESSES.launchpad,
+    abi: LaunchpadAbi,
+    functionName: "launchCount",
+  })) as bigint;
+  check(
+    launchesAfter === (launchesBefore as bigint) + 1n,
+    `the registry gained a launch (${launchesBefore} → ${launchesAfter})`,
+  );
+  check(
+    await page.getByRole("heading", { name: "End To End" }).isVisible(),
+    "the wizard landed on the token it created",
+  );
+
+  /* -- claiming the fees the trading above produced ----------------------- */
+
+  console.log("\nfees");
+  await page.goto(`${site}/t/${pooled.record.token}`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Claim fees for this pool" }).click();
+  await page.waitForSelector("text=Claimed.", { timeout: 30_000 });
+  check(
+    await page.getByText("to the creator", { exact: true }).isVisible(),
+    "the claim reports what actually moved, decoded from its own event",
+  );
+
   await browser.close();
 
   if (failures > 0) {
     console.error(`\n${failures} check${failures === 1 ? "" : "s"} failed`);
     process.exit(1);
   }
-  console.log("\ntrading works end to end");
+  console.log("\nevery write the interface can make, works");
+}
+
+async function blueprintCount(): Promise<bigint> {
+  return client.readContract({
+    address: ADDRESSES.launchpad,
+    abi: LaunchpadAbi,
+    functionName: "blueprintCount",
+  }) as Promise<bigint>;
 }
 
 async function balanceOf(token: Address): Promise<bigint> {

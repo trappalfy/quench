@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Panel } from "../Panel";
 import { EthField, NumberField } from "./Field";
 import { CopyButton } from "./CopyButton";
+import { TxButton } from "../wallet/TxButton";
 import { SwapPath } from "./SwapPath";
 import {
   BLOCK_META,
@@ -26,7 +27,10 @@ import {
   type BlockKey,
 } from "@/lib/hookConfig";
 import { Q96, simulateBuy } from "@/lib/simulate";
-import { ADDRESSES, explorerAddress } from "@/lib/chain";
+import { ADDRESSES, CONSTANTS, explorerAddress } from "@/lib/chain";
+import { useWallet } from "@/lib/wallet/WalletContext";
+import { browserClient } from "@/lib/client";
+import { publishBlueprint } from "@/lib/writes/launchpad";
 import { formatBps, formatCount, formatEth, formatPips, ordinal } from "@/lib/format";
 
 /// The trade being quoted. Held in the page rather than inside the panel that
@@ -42,17 +46,6 @@ type Sim = {
   quote: ReturnType<typeof simulateBuy>;
 };
 
-/**
- * The builder.
- *
- * Every number on this page is computed in the browser by `ts/src/simulate.ts`,
- * which mirrors `BlockMath.sol` and is checked against it by a differential
- * test. Nothing here is sent anywhere and nothing is signed: what the page can
- * tell you, it tells you before you spend gas finding out.
- *
- * The one thing it cannot do is publish. That is stated on the button rather
- * than hidden behind one that fails.
- */
 /// Where the page opens when nothing was carried in: three blocks armed, so
 /// that the first thing on screen is a stack doing something rather than an
 /// empty form.
@@ -66,6 +59,18 @@ export const STARTING_CONFIG: BlockConfig = {
   lpBps: 200,
 };
 
+/**
+ * The builder.
+ *
+ * Every number on this page is computed in the browser by `ts/src/simulate.ts`,
+ * which mirrors `BlockMath.sol` and is checked against it by a differential
+ * test, and every config is checked against the hook's own nine rules. What the
+ * page can tell you, it tells you before you spend gas finding out — including
+ * the refusal, by the name the contract would revert with.
+ *
+ * Publishing is the only thing here that touches the chain, and it simulates
+ * first as well.
+ */
 export function HookBuilder({ initial }: { initial?: BlockConfig }) {
   const [cfg, setCfg] = useState<BlockConfig>(initial ?? STARTING_CONFIG);
 
@@ -122,7 +127,7 @@ export function HookBuilder({ initial }: { initial?: BlockConfig }) {
         <Validation issues={issues} />
         <Output cfg={cfg} />
         <Flags />
-        <Publish />
+        <Publish cfg={cfg} valid={issues.length === 0} />
       </div>
     </div>
   );
@@ -545,21 +550,56 @@ function Flags() {
   );
 }
 
-function Publish() {
+function Publish({ cfg, valid }: { cfg: BlockConfig; valid: boolean }) {
+  const { address, walletClient } = useWallet();
+  const [royaltyBps, setRoyaltyBps] = useState(0);
+
+  const tooMuch = royaltyBps > CONSTANTS.maxRoyaltyBps;
+
   return (
     <Panel title="publish" bodyClassName="p-4">
-      <button
-        type="button"
-        disabled
-        className="w-full cursor-not-allowed border border-off px-3 py-2 text-off"
-      >
-        Publish as a blueprint
-      </button>
+      <p className="text-dim">
+        A published blueprint is a config anyone can launch against. It cannot be
+        edited or withdrawn afterwards, and its royalty comes out of the
+        creator&rsquo;s fee share, never out of a buyer.
+      </p>
+
+      <div className="mt-4">
+        <NumberField
+          label="your royalty"
+          unit="bps"
+          value={royaltyBps}
+          max={CONSTANTS.maxRoyaltyBps}
+          meaning={
+            royaltyBps === 0
+              ? "none — anyone may use it for free"
+              : `${formatBps(royaltyBps)} of each launch's creator fees`
+          }
+          invalid={tooMuch}
+          onChange={setRoyaltyBps}
+        />
+      </div>
+
+      <div className="mt-4">
+        <TxButton
+          label="Publish as a blueprint"
+          pendingLabel="Publishing…"
+          doneLabel="Published, and now unchangeable."
+          disabled={!valid || tooMuch || !walletClient}
+          run={() =>
+            publishBlueprint(browserClient, walletClient!, address!, cfg, royaltyBps)
+          }
+        >
+          {!valid
+            ? "The config above would be refused by the hook. Fix it first."
+            : "Simulated against the launchpad before your wallet opens, so a refusal arrives by name rather than as a failed transaction."}
+        </TxButton>
+      </div>
+
       <p className="mt-3 text-[11px] text-faint">
-        This is the one thing on the page that needs a wallet, and wallet
-        connection is not built yet. Everything above is finished: it runs the
-        same arithmetic the hook runs and refuses what the hook would refuse.
-        Until then, copy the struct and launch with it from a script — see{" "}
+        Prefer to do it from a terminal? Copy the struct above and call{" "}
+        <code className="text-dim">publishBlueprint</code> with{" "}
+        <code className="text-dim">cast send --account</code> — see{" "}
         <Link className="text-dim underline decoration-line underline-offset-2 hover:text-text" href="/docs">
           the docs
         </Link>

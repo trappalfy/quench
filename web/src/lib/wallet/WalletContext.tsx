@@ -5,15 +5,10 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
+
   useState,
 } from "react";
-import {
-  createWalletClient,
-  custom,
-  type Address,
-  type WalletClient,
-} from "viem";
+import type { Address, WalletClient } from "viem";
 import { robinhood } from "../chain";
 import { discoverWallets, type WalletOption } from "./providers";
 import { describeProviderError } from "./messages";
@@ -202,13 +197,37 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     };
   }, [selected, disconnect]);
 
-  const walletClient = useMemo(() => {
-    if (!selected || !address) return null;
-    return createWalletClient({
-      account: address,
-      chain: robinhood,
-      transport: custom(selected.provider as Parameters<typeof custom>[0]),
-    });
+  /**
+   * Built only once somebody has connected, and imported only then.
+   *
+   * This provider sits in the root layout, so a static import of viem here put
+   * it in the chunk every page loads — sixty-five kilobytes on the docs, which
+   * will never sign anything. Nothing needs a wallet client until there is a
+   * wallet, and by then the person has clicked a button and can afford a
+   * module.
+   */
+  const [walletClient, setWalletClient] = useState<WalletClient | null>(null);
+
+  useEffect(() => {
+    if (!selected || !address) {
+      setWalletClient(null);
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const { createWalletClient, custom } = await import("viem");
+      if (!alive) return;
+      setWalletClient(
+        createWalletClient({
+          account: address,
+          chain: robinhood,
+          transport: custom(selected.provider as Parameters<typeof custom>[0]),
+        }),
+      );
+    })();
+    return () => {
+      alive = false;
+    };
   }, [selected, address]);
 
   const value: WalletState = {
