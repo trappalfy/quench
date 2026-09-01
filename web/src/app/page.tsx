@@ -10,6 +10,7 @@ import { Verifiable } from "@/components/home/Verifiable";
 import { serverClient } from "@/lib/client";
 import { readLaunch, readLaunchCount, readTokenPage } from "@/lib/reads/launches";
 import { readTotals } from "@/lib/reads/totals";
+import { CONSTANTS, DEPLOY_BLOCK } from "@/lib/chain";
 import { buysUntilPot } from "@/lib/derive";
 
 export const revalidate = 30;
@@ -97,6 +98,8 @@ export default async function Home() {
           initialHead={head}
           totals={totals}
           lastLaunchBlock={lastLaunchBlock}
+          totalSupply={CONSTANTS.totalSupply}
+          deployBlock={DEPLOY_BLOCK}
         />
 
         <section className="py-16">
