@@ -115,8 +115,10 @@ export function LiveMetrics({
       hint: `Measured in test/unit/BlockGas.t.sol against a real pool, not estimated. On top of ${formatCount(GAS.base)} for the swap itself.`,
     },
     {
-      label: "immutable since",
-      value: `block ${formatCount(Number(deployBlock))}`,
+      // The number alone. With "block " in front it truncates on a phone,
+      // and half a block number is worth less than none.
+      label: "immutable since block",
+      value: formatCount(Number(deployBlock)),
       hint: "The block the contracts were deployed in. No owner, no upgrade path, no pause.",
     },
   ];
