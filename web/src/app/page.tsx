@@ -3,6 +3,7 @@ import { Nav } from "@/components/Nav";
 import { Panel } from "@/components/Panel";
 import { LaunchCard } from "@/components/LaunchCard";
 import { LiveMetrics } from "@/components/LiveMetrics";
+import { TokenAddress } from "@/components/TokenAddress";
 import { HeroComposer } from "@/components/home/HeroComposer";
 import { BlockShowcase, type PotFacts } from "@/components/home/BlockShowcase";
 import { LaunchPath } from "@/components/home/LaunchPath";
@@ -107,6 +108,10 @@ export default async function Home() {
                 </>
               )}
             </div>
+
+            {/* Renders nothing until an address is set, so this line costs the
+                page exactly one component call before listing day. */}
+            <TokenAddress />
           </div>
 
           <HeroComposer />
