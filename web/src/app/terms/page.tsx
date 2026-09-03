@@ -14,7 +14,7 @@ export const metadata = {
     "What Quench is, what it is not, who holds what, and the risks of using it. Written to be read.",
 };
 
-export const LAST_UPDATED = "1 September 2026";
+const LAST_UPDATED = "1 September 2026";
 
 const SECTIONS = [
   ["what", "What Quench is"],
